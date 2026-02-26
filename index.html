@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Atelier Aline Silva</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3d2524">
+    <link rel="apple-touch-icon" href="assets/icon-512.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Aline Beauty">
+    <!-- Google Fonts: Playfair Display e Montserrat -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Montserrat:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+    <div id="app">
+        <!-- Navegação Inferior (Mobile-first) -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-screen="dashboard">
+                <i data-lucide="layout-dashboard"></i>
+                <span>Início</span>
+            </button>
+            <button class="nav-item" data-screen="agenda">
+                <i data-lucide="calendar"></i>
+                <span>Agenda</span>
+            </button>
+            <button class="nav-item" data-screen="clientes">
+                <i data-lucide="users"></i>
+                <span>Clientes</span>
+            </button>
+            <button class="nav-item" data-screen="servicos">
+                <i data-lucide="sparkles"></i>
+                <span>Serviços</span>
+            </button>
+            <button class="nav-item" data-screen="financeiro">
+                <i data-lucide="wallet"></i>
+                <span>Finanças</span>
+            </button>
+        </nav>
+
+        <!-- Container de Telas -->
+        <main id="main-content">
+            <section id="screen-dashboard" class="screen active">
+                <header class="header">
+                    <h1 class="brand" style="font-size: 1.5rem;">Aline Silva</h1>
+                    <p class="greeting"
+                        style="letter-spacing: 5px; text-transform: uppercase; font-size: 0.7rem; margin-top: -5px;">
+                        Beauty</p>
+                </header>
+
+                <div class="stats-grid" id="birthday-banner-container" style="padding-bottom:0;">
+                    <div class="stat-card highlight"
+                        style="background: var(--accent-color); border:none; text-align:center;">
+                        <span class="stat-label" style="color:white; font-size:0.7rem;">🎂 Aniversariantes da
+                            Semana</span>
+                        <p id="birthday-list" style="font-size:0.9rem; font-weight:600; margin-top:5px; color:white;">
+                        </p>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">Hoje</span>
+                        <span class="stat-value">3</span>
+                        <span class="stat-desc">Agendamentos</span>
+                    </div>
+                    <div class="stat-card highlight">
+                        <span class="stat-label">Receita do Dia</span>
+                        <span class="stat-value">R$ 450,00</span>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <button class="btn-primary" onclick="switchScreen('agenda'); showAgendaForm();">
+                        <i data-lucide="plus"></i> Novo Agendamento
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal Global: Perfil da Cliente -->
+    <div id="modal-perfil-cliente" class="modal">
+        <div class="modal-content" style="max-height: 85vh; border: 2px solid var(--accent-color);">
+            <div class="modal-header">
+                <h2 style="font-family:'Playfair Display', serif; color: var(--primary-color);">Ficha da Cliente</h2>
+                <button onclick="document.getElementById('modal-perfil-cliente').classList.remove('active')"
+                    class="close-btn">&times;</button>
+            </div>
+            <div id="perfil-cliente-content" style="display: flex; flex-direction: column; gap: 15px;">
+                <!-- Preenchido via JS -->
+            </div>
+            <div style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button id="btn-edit-perfil" class="btn-primary"
+                    style="background: var(--accent-color); font-size: 0.8rem; padding: 12px;">
+                    <i data-lucide="edit-3"></i> Editar
+                </button>
+                <button id="btn-whatsapp-perfil" class="btn-primary"
+                    style="background: #25d366; font-size: 0.8rem; padding: 12px;">
+                    <i data-lucide="message-circle"></i> WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>
