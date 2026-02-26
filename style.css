@@ -66,15 +66,22 @@ main#main-content {
     text-align: center;
     background: linear-gradient(to bottom, var(--secondary-color), transparent);
     transition: var(--transition);
+    isolation: isolate;
+    /* Cria um contexto de isolamento para o mix-blend-mode funcionar no iOS */
 }
 
 .header-logo {
     height: 120px;
     width: auto;
     mix-blend-mode: multiply;
-    /* Remove o fundo branco do JPG */
-    filter: contrast(110%);
+    /* Remove o fundo branco */
+    -webkit-mix-blend-mode: multiply;
+    /* Prefixo para versões mais antigas do iOS */
+    display: block;
+    margin: 0 auto;
     animation: fadeIn 1s ease-out;
+    position: relative;
+    z-index: 1;
 }
 
 @keyframes fadeIn {
