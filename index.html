@@ -24,30 +24,6 @@
 
 <body>
     <div id="app">
-        <!-- Navegação Inferior (Mobile-first) -->
-        <nav class="bottom-nav">
-            <button class="nav-item active" data-screen="dashboard">
-                <i data-lucide="layout-dashboard"></i>
-                <span>Início</span>
-            </button>
-            <button class="nav-item" data-screen="agenda">
-                <i data-lucide="calendar"></i>
-                <span>Agenda</span>
-            </button>
-            <button class="nav-item" data-screen="clientes">
-                <i data-lucide="users"></i>
-                <span>Clientes</span>
-            </button>
-            <button class="nav-item" data-screen="servicos">
-                <i data-lucide="sparkles"></i>
-                <span>Serviços</span>
-            </button>
-            <button class="nav-item" data-screen="financeiro">
-                <i data-lucide="wallet"></i>
-                <span>Finanças</span>
-            </button>
-        </nav>
-
         <!-- Container de Telas -->
         <main id="main-content">
             <section id="screen-dashboard" class="screen active">
@@ -87,6 +63,30 @@
                 </div>
             </section>
         </main>
+
+        <!-- Navegação Inferior (Agora no final para ficar embaixo) -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-screen="dashboard">
+                <i data-lucide="layout-dashboard"></i>
+                <span>Início</span>
+            </button>
+            <button class="nav-item" data-screen="agenda">
+                <i data-lucide="calendar"></i>
+                <span>Agenda</span>
+            </button>
+            <button class="nav-item" data-screen="clientes">
+                <i data-lucide="users"></i>
+                <span>Clientes</span>
+            </button>
+            <button class="nav-item" data-screen="servicos">
+                <i data-lucide="sparkles"></i>
+                <span>Serviços</span>
+            </button>
+            <button class="nav-item" data-screen="financeiro">
+                <i data-lucide="wallet"></i>
+                <span>Finanças</span>
+            </button>
+        </nav>
     </div>
 
     <!-- Modal Global: Perfil da Cliente -->
