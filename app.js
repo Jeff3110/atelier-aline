@@ -1107,9 +1107,14 @@ function renderServicos(items) {
                 <h3 style="font-family:'Montserrat', sans-serif; font-size:1rem; margin-bottom:2px;">${item.nome}</h3>
                 <p style="font-size:0.85rem; color:var(--accent-color); font-weight:600;">R$ ${item.valor.toFixed(2)}</p>
             </div>
-            <button onclick="deleteServico('${item.id}')" class="action-btn delete">
-                <i data-lucide="trash-2" style="width:20px; height:20px;"></i>
-            </button>
+            <div class="card-actions">
+                <button onclick="editServico('${item.id}', '${item.nome}', ${item.valor})" class="action-btn edit">
+                    <i data-lucide="edit-3" style="width:20px; height:20px;"></i>
+                </button>
+                <button onclick="deleteServico('${item.id}')" class="action-btn delete">
+                    <i data-lucide="trash-2" style="width:20px; height:20px;"></i>
+                </button>
+            </div>
         </div>
     `).join('');
     lucide.createIcons();
@@ -1119,6 +1124,15 @@ function showServicoForm() {
     document.getElementById('modal-servico').classList.add('active');
     document.getElementById('form-servico').reset();
     document.getElementById('s-id').value = '';
+    document.getElementById('s-modal-title').innerText = 'Novo Serviço';
+}
+
+function editServico(id, nome, valor) {
+    document.getElementById('modal-servico').classList.add('active');
+    document.getElementById('s-id').value = id;
+    document.getElementById('s-nome').value = nome;
+    document.getElementById('s-valor').value = valor;
+    document.getElementById('s-modal-title').innerText = 'Editar Serviço';
 }
 
 function hideServicoForm() {
@@ -1157,13 +1171,23 @@ document.addEventListener('submit', async (e) => {
             valor: parseFloat(document.getElementById('s-valor').value)
         };
 
+        const id = document.getElementById('s-id').value;
+
         try {
-            const { error } = await supabaseClient.from('servicos').insert([servicoData]);
-            if (error) throw error;
+            if (id) {
+                // Atualização
+                const { error } = await supabaseClient.from('servicos').update(servicoData).eq('id', id);
+                if (error) throw error;
+                alert('✅ Serviço atualizado com sucesso!');
+            } else {
+                // Inserção
+                const { error } = await supabaseClient.from('servicos').insert([servicoData]);
+                if (error) throw error;
+                alert('✅ Serviço cadastrado com sucesso!');
+            }
 
             hideServicoForm();
             fetchServicos();
-            alert('✅ Serviço cadastrado com sucesso!');
         } catch (err) {
             alert('❌ Erro ao salvar serviço: ' + err.message);
         } finally {
