@@ -285,6 +285,22 @@ function renderScreen(screenId) {
                         </button>
                     </div>
 
+                    <!-- Filtros de Forma de Pagamento (Nova v2.2) -->
+                    <div id="method-filters" class="stats-grid" style="grid-template-columns: repeat(4, 1fr); padding: 0 20px 15px; gap:8px;">
+                        <div class="stat-card active" onclick="setMethodFilter('todos')" id="f-m-todos" style="padding:10px; cursor:pointer; text-align:center; background:#eee; border-radius:8px;">
+                            <span style="font-size:0.6rem; font-weight:700;">TODOS</span>
+                        </div>
+                        <div class="stat-card" onclick="setMethodFilter('Pix')" id="f-m-pix" style="padding:10px; cursor:pointer; text-align:center; border:1px solid #32BCAD; border-radius:8px;">
+                            <span style="font-size:0.6rem; font-weight:700; color:#32BCAD;">PIX</span>
+                        </div>
+                        <div class="stat-card" onclick="setMethodFilter('Dinheiro')" id="f-m-dinheiro" style="padding:10px; cursor:pointer; text-align:center; border:1px solid #2ecc71; border-radius:8px;">
+                            <span style="font-size:0.6rem; font-weight:700; color:#2ecc71;">DINHEIRO</span>
+                        </div>
+                        <div class="stat-card" onclick="setMethodFilter('Cartão')" id="f-m-cartao" style="padding:10px; cursor:pointer; text-align:center; border:1px solid #3498db; border-radius:8px;">
+                            <span style="font-size:0.6rem; font-weight:700; color:#3498db;">CARTÃO</span>
+                        </div>
+                    </div>
+
                     <div id="acerto-display" style="display: none; padding: 0 20px 20px;">
                         <div style="background: white; border: 2px solid var(--accent-color); border-radius: 12px; padding: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center;">
                             <div>
@@ -747,12 +763,13 @@ async function confirmarPagamento(forma) {
 
         if (error) throw error;
 
-        // Registrar no financeiro com a forma de pagamento
+        // Registrar no financeiro com a forma de pagamento e DATA ATUAL
         await supabaseClient.from('financeiro').insert([{
             tipo: 'entrada',
             descricao: `Saldo de serviço: ${nome}`,
             valor: restante,
             forma_pagamento: forma,
+            data: new Date().toISOString(), // AGORA USA A DATA REAL DO RECEBIMENTO
             agendamento_id: id
         }]);
 
@@ -824,9 +841,10 @@ function renderAgenda(items) {
         const valorTotal = parseFloat(item.valor || 0);
         const valorPago = parseFloat(item.valor_pago || 0);
         const restante = valorTotal - valorPago;
+        const isPago = restante <= 0 && item.status !== 'ausente';
 
         return `
-            <div class="card agenda-card" style="margin-bottom: 15px; padding: 15px; border-radius: 12px; background: ${item.status === 'ausente' ? '#f8f9fa' : 'white'}; box-shadow: 0 2px 8px rgba(0,0,0,0.05); opacity: ${item.status === 'ausente' ? '0.6' : '1'}; border-left: 5px solid ${item.status === 'ausente' ? '#ccc' : (restante > 0 ? 'var(--accent-color)' : '#2ecc71')};">
+            <div class="card agenda-card" style="margin-bottom: 15px; padding: 15px; border-radius: 12px; background: ${item.status === 'ausente' ? '#f8f9fa' : (isPago ? '#f0fff4' : 'white')}; box-shadow: 0 2px 8px rgba(0,0,0,0.05); opacity: ${item.status === 'ausente' ? '0.6' : '1'}; border-left: 5px solid ${item.status === 'ausente' ? '#ccc' : (isPago ? '#2ecc71' : 'var(--accent-color)')};">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
                     <div>
                         <span style="font-size: 0.7rem; color: var(--accent-color); font-weight: 600; text-transform: uppercase;">${timeStr} - ${dateStr}</span>
@@ -1003,6 +1021,24 @@ document.addEventListener('submit', async (e) => {
 // --- MÓDULO FINANCEIRO ---
 
 let currentFinFilter = 'dia';
+let currentMethodFilter = 'todos';
+
+function setMethodFilter(method) {
+    currentMethodFilter = method;
+
+    // Atualizar UI dos botões de método
+    const methods = ['todos', 'Pix', 'Dinheiro', 'Cartão'];
+    methods.forEach(m => {
+        const id = `f-m-${m.toLowerCase().replace('ã', 'a')}`;
+        const el = document.getElementById(id);
+        if (el) {
+            el.style.background = m === method ? (m === 'todos' ? '#eee' : (m === 'Pix' ? '#32BCAD22' : (m === 'Dinheiro' ? '#2ecc7122' : '#3498db22'))) : 'white';
+            el.classList.toggle('active', m === method);
+        }
+    });
+
+    fetchFinanceiro();
+}
 
 function setFinanceiroFilter(filter) {
     currentFinFilter = filter;
@@ -1073,8 +1109,14 @@ async function fetchFinanceiro() {
         const { data, error } = await query.order('data', { ascending: false });
         if (error) throw error;
 
-        renderFinanceiro(data);
-        calculateTotals(data);
+        // Filtrar por método se necessário
+        let filteredData = data;
+        if (currentMethodFilter !== 'todos') {
+            filteredData = data.filter(i => i.forma_pagamento === currentMethodFilter);
+        }
+
+        renderFinanceiro(filteredData);
+        calculateTotals(filteredData); // Calcula apenas do método selecionado
     } catch (err) {
         console.error('Erro ao buscar finanças:', err);
         listEl.innerHTML = `<p style="color:red; text-align:center;">Erro ao carregar dados.</p>`;
