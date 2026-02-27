@@ -163,10 +163,11 @@ function renderScreen(screenId) {
                 <div id="modal-client" class="modal">
                     <div class="modal-content">
                         <header class="modal-header">
-                            <h2>Novo Cliente</h2>
+                            <h2 id="c-modal-title">Novo Cliente</h2>
                             <button class="close-btn" onclick="hideClientForm()">&times;</button>
                         </header>
                         <form id="form-client">
+                            <input type="hidden" id="c-id">
                             <div class="form-group">
                                 <label>Nome Completo*</label>
                                 <input type="text" id="c-nome" required>
@@ -414,9 +415,17 @@ function renderClients(clients) {
                 <h3 style="font-family: 'Montserrat', sans-serif; font-size: 1rem; margin-bottom: 2px; color: var(--primary-color); text-decoration: underline;">${c.nome}</h3>
                 <p style="font-size: 0.8rem; color: #666;">${c.telefone || 'Sem telefone'}</p>
             </div>
-            <button class="btn-icon" onclick="openWhatsApp('${c.telefone}')" style="background:none; border:none; color: #25D366; cursor: pointer;">
-                <i data-lucide="phone"></i>
-            </button>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button class="btn-icon" onclick="openWhatsApp('${c.telefone}')" style="background:none; border:none; color: #25D366; cursor: pointer;">
+                    <i data-lucide="phone"></i>
+                </button>
+                <button class="btn-icon" onclick="editClient('${c.id}')" style="background:none; border:none; color: var(--primary-color); cursor: pointer;">
+                    <i data-lucide="edit-3"></i>
+                </button>
+                <button class="btn-icon" onclick="deleteClient('${c.id}')" style="background:none; border:none; color: #e74c3c; cursor: pointer;">
+                    <i data-lucide="trash-2"></i>
+                </button>
+            </div>
         </div>
     `).join('');
     lucide.createIcons();
@@ -431,12 +440,28 @@ function filterClients() {
 function editClient(id) {
     const c = allClients.find(c => c.id === id);
     if (!c) return;
+
+    showClientForm();
+    document.getElementById('c-id').value = c.id;
     document.getElementById('c-nome').value = c.nome;
     document.getElementById('c-telefone').value = c.telefone || '';
     document.getElementById('c-instagram').value = c.instagram || '';
+    document.getElementById('c-nascimento').value = c.data_nascimento || '';
     document.getElementById('c-obs').value = c.observacoes || '';
     document.getElementById('c-ficha').value = c.ficha_tecnica || '';
-    showClientForm();
+    document.getElementById('c-modal-title').innerText = 'Editar Cliente';
+}
+
+async function deleteClient(id) {
+    if (!confirm('Tem certeza que deseja excluir este cliente?')) return;
+    try {
+        const { error } = await supabaseClient.from('clientes').delete().eq('id', id);
+        if (error) throw error;
+        fetchClients();
+        alert('✅ Cliente removido com sucesso!');
+    } catch (err) {
+        alert('❌ Erro ao excluir cliente: ' + err.message);
+    }
 }
 
 function hideClientForm() {
@@ -448,6 +473,8 @@ function hideClientForm() {
 function showClientForm() {
     document.getElementById('modal-client').classList.add('active');
     document.getElementById('form-client').reset();
+    document.getElementById('c-id').value = '';
+    document.getElementById('c-modal-title').innerText = 'Novo Cliente';
 }
 
 // Interceptar envio do formulário
@@ -479,22 +506,28 @@ document.addEventListener('submit', async (e) => {
             return;
         }
 
+        const id = document.getElementById('c-id').value;
+
         try {
-            const { data, error } = await supabaseClient
-                .from('clientes')
-                .insert([clientData])
-                .select();
-
-            if (error) {
-                console.error('Erro retornado pelo Supabase:', error);
-                throw error;
+            if (id) {
+                // Modo Edição
+                const { error } = await supabaseClient
+                    .from('clientes')
+                    .update(clientData)
+                    .eq('id', id);
+                if (error) throw error;
+                alert('✅ Cliente atualizado com sucesso!');
+            } else {
+                // Modo Novo
+                const { error } = await supabaseClient
+                    .from('clientes')
+                    .insert([clientData]);
+                if (error) throw error;
+                alert('✅ Cliente cadastrado com sucesso!');
             }
-
-            console.log('Resposta de sucesso do Supabase:', data);
 
             hideClientForm();
             fetchClients();
-            alert('✅ Cliente salvo com sucesso!');
         } catch (err) {
             console.error('Falha catastrófica ao salvar:', err);
             alert('❌ Erro ao salvar cliente!\n\nDetalhe: ' + (err.message || 'Erro desconhecido. Verifique se o SQL foi rodado no painel do Supabase.'));
@@ -630,6 +663,13 @@ async function fetchAgenda() {
 
         const { data, error } = await query;
         if (error) throw error;
+
+        // Ordenar alfabeticamente pelo nome do cliente (conforme pedido)
+        data.sort((a, b) => {
+            const nomeA = (a.clientes?.nome || '').toLowerCase();
+            const nomeB = (b.clientes?.nome || '').toLowerCase();
+            return nomeA.localeCompare(nomeB);
+        });
 
         renderAgenda(data);
     } catch (err) {
