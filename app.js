@@ -85,12 +85,13 @@ function renderScreen(screenId) {
                 <div id="modal-agenda" class="modal">
                     <div class="modal-content">
                         <header class="modal-header">
-                            <h2>Novo Agendamento</h2>
+                            <h2 id="a-modal-title">Novo Agendamento</h2>
                             <button class="close-btn" onclick="hideAgendaForm()">&times;</button>
                         </header>
                         <form id="form-agenda">
+                            <input type="hidden" id="a-id">
                             <div class="form-group">
-                                <label>Cliente (Busque ou digite novo nome)*</label>
+                                <label>Cliente*</label>
                                 <input type="text" id="a-cliente" list="clients-datalist" placeholder="Nome da cliente..." required>
                                 <datalist id="clients-datalist"></datalist>
                             </div>
@@ -131,6 +132,27 @@ function renderScreen(screenId) {
                             </div>
                             <button type="submit" class="btn-primary" id="btn-save-agenda">Agendar</button>
                         </form>
+                    </div>
+                </div>
+
+                <!-- Modal de Forma de Pagamento -->
+                <div id="modal-pagamento" class="modal">
+                    <div class="modal-content" style="max-width:300px;">
+                        <header class="modal-header">
+                            <h2>Receber Valor</h2>
+                            <button class="close-btn" onclick="hidePaymentModal()">&times;</button>
+                        </header>
+                        <div style="padding:15px; text-align:center;">
+                            <p style="margin-bottom:15px; font-weight:600;" id="p-pagamento-msg"></p>
+                            <input type="hidden" id="p-id-agendamento">
+                            <input type="hidden" id="p-valor-restante">
+                            <input type="hidden" id="p-nome-cliente">
+                            <div style="display:flex; flex-direction:column; gap:10px;">
+                                <button onclick="confirmarPagamento('Pix')" class="btn-primary" style="background:#32BCAD;">Pix</button>
+                                <button onclick="confirmarPagamento('Dinheiro')" class="btn-primary" style="background:#2ecc71;">Dinheiro</button>
+                                <button onclick="confirmarPagamento('Cartão')" class="btn-primary" style="background:#3498db;">Cartão</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -636,6 +658,113 @@ function setAgendaToday() {
     }
 }
 
+function showAgendaForm() {
+    document.getElementById('modal-agenda').classList.add('active');
+    document.getElementById('form-agenda').reset();
+    document.getElementById('a-id').value = '';
+    document.getElementById('a-modal-title').innerText = 'Novo Agendamento';
+}
+
+function hideAgendaForm() {
+    document.getElementById('modal-agenda').classList.remove('active');
+}
+
+async function editAgendamento(id) {
+    try {
+        const { data, error } = await supabaseClient.from('agendamentos').select('*').eq('id', id).single();
+        if (error) throw error;
+
+        showAgendaForm();
+        document.getElementById('a-id').value = data.id;
+        document.getElementById('a-cliente').value = ''; // Nome deve ser buscado ou preenchido manualmente
+        // Buscar nome do cliente se necessário
+        const { data: cliente } = await supabaseClient.from('clientes').select('nome').eq('id', data.cliente_id).single();
+        if (cliente) document.getElementById('a-cliente').value = cliente.nome;
+
+        document.getElementById('a-servico').value = data.servico;
+        // Formatar data_hora para datetime-local
+        const dt = new Date(data.data_hora);
+        dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
+        document.getElementById('a-data').value = dt.toISOString().slice(0, 16);
+
+        document.getElementById('a-valor').value = data.valor;
+        document.getElementById('a-entrada').value = data.valor_pago || 0;
+        document.getElementById('a-modal-title').innerText = 'Editar Agendamento';
+    } catch (err) {
+        alert('Erro ao carregar agendamento: ' + err.message);
+    }
+}
+
+async function deleteAgendamento(id) {
+    if (!confirm('Deseja excluir este agendamento?')) return;
+    try {
+        const { error } = await supabaseClient.from('agendamentos').delete().eq('id', id);
+        if (error) throw error;
+        fetchAgenda();
+        updateDashboard();
+    } catch (err) {
+        alert('Erro ao excluir agendamento: ' + err.message);
+    }
+}
+
+async function setNoShow(id) {
+    if (!confirm('Marcar que a cliente não veio (Ausente)?')) return;
+    try {
+        const { error } = await supabaseClient.from('agendamentos').update({ status: 'ausente' }).eq('id', id);
+        if (error) throw error;
+        fetchAgenda();
+        alert('✅ Status atualizado para Ausente.');
+    } catch (err) {
+        alert('Erro ao atualizar status: ' + err.message);
+    }
+}
+
+function showPaymentModal(id, restante, nome) {
+    document.getElementById('modal-pagamento').classList.add('active');
+    document.getElementById('p-id-agendamento').value = id;
+    document.getElementById('p-valor-restante').value = restante;
+    document.getElementById('p-nome-cliente').value = nome;
+    document.getElementById('p-pagamento-msg').innerText = `Receber R$ ${restante.toFixed(2)} de ${nome}`;
+}
+
+function hidePaymentModal() {
+    document.getElementById('modal-pagamento').classList.remove('active');
+}
+
+async function confirmarPagamento(forma) {
+    const id = document.getElementById('p-id-agendamento').value;
+    const restante = parseFloat(document.getElementById('p-valor-restante').value);
+    const nome = document.getElementById('p-nome-cliente').value;
+
+    try {
+        const { data: agenda } = await supabaseClient.from('agendamentos').select('valor_pago').eq('id', id).single();
+        const novoPago = parseFloat(agenda.valor_pago || 0) + restante;
+
+        const { error } = await supabaseClient
+            .from('agendamentos')
+            .update({ valor_pago: novoPago, pago: true, status: 'concluido' })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        // Registrar no financeiro com a forma de pagamento
+        await supabaseClient.from('financeiro').insert([{
+            tipo: 'entrada',
+            descricao: `Saldo de serviço: ${nome}`,
+            valor: restante,
+            forma_pagamento: forma,
+            agendamento_id: id
+        }]);
+
+        hidePaymentModal();
+        fetchAgenda();
+        updateDashboard();
+        alert(`✅ Recebido em ${forma}!`);
+    } catch (err) {
+        alert('Erro ao processar pagamento: ' + err.message);
+    }
+}
+
 async function fetchAgenda() {
     const listEl = document.getElementById('agenda-list');
     const dateFilter = document.getElementById('agenda-date-filter');
@@ -697,7 +826,7 @@ function renderAgenda(items) {
         const restante = valorTotal - valorPago;
 
         return `
-            <div class="card agenda-card" style="margin-bottom: 15px; padding: 15px; border-radius: 12px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+            <div class="card agenda-card" style="margin-bottom: 15px; padding: 15px; border-radius: 12px; background: ${item.status === 'ausente' ? '#f8f9fa' : 'white'}; box-shadow: 0 2px 8px rgba(0,0,0,0.05); opacity: ${item.status === 'ausente' ? '0.6' : '1'}; border-left: 5px solid ${item.status === 'ausente' ? '#ccc' : (restante > 0 ? 'var(--accent-color)' : '#2ecc71')};">
                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
                     <div>
                         <span style="font-size: 0.7rem; color: var(--accent-color); font-weight: 600; text-transform: uppercase;">${timeStr} - ${dateStr}</span>
@@ -705,14 +834,19 @@ function renderAgenda(items) {
                     </div>
                     <div style="text-align: right;">
                         <span style="display:block; font-size: 0.8rem; font-weight: 600;">Total: R$ ${valorTotal.toFixed(2)}</span>
-                        ${restante > 0 ? `<span style="display:block; font-size: 0.75rem; color: #e74c3c;">Falta: R$ ${restante.toFixed(2)}</span>` : '<span style="display:block; font-size: 0.75rem; color: #2ecc71;">Pago ✅</span>'}
+                        ${restante > 0 && item.status !== 'ausente' ? `<span style="display:block; font-size: 0.75rem; color: #e74c3c;">Falta: R$ ${restante.toFixed(2)}</span>` : (item.status === 'ausente' ? '<span style="color:#999;font-size:0.75rem;">Ausente</span>' : '<span style="display:block; font-size: 0.75rem; color: #2ecc71;">Pago ✅</span>')}
                     </div>
                 </div>
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-size: 0.85rem; color: #666;">${item.servico}</span>
-                    <div style="display: flex; gap: 8px;">
-                        ${restante > 0 ? `<button onclick="quitarSaldo('${item.id}', ${restante}, '${item.clientes?.nome || 'Cliente'}')" style="background: var(--accent-color); color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer;">Liquidar Restante</button>` : ''}
-                        <span style="font-size: 0.75rem; color: ${item.status === 'concluido' ? 'green' : '#d4a373'};">${item.status}</span>
+                    <div style="display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end;">
+                        ${restante > 0 && item.status === 'pendente' ? `<button onclick="showPaymentModal('${item.id}', ${restante}, '${item.clientes?.nome || 'Cliente'}')" style="background: var(--accent-color); color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 0.7rem; cursor: pointer; font-weight:600;">Receber</button>` : ''}
+                        
+                        ${item.status === 'pendente' ? `<button onclick="setNoShow('${item.id}')" title="Não veio" style="background:#eee; color:#666; border:none; padding:6px; border-radius:6px; cursor:pointer;"><i data-lucide="user-x" style="width:16px; height:16px;"></i></button>` : ''}
+                        
+                        <button onclick="editAgendamento('${item.id}')" class="btn-icon" style="background:#eee; padding:6px; border-radius:6px; color:var(--primary-color);"><i data-lucide="edit-3" style="width:16px; height:16px;"></i></button>
+                        
+                        <button onclick="deleteAgendamento('${item.id}')" class="btn-icon" style="background:#eee; padding:6px; border-radius:6px; color:#e74c3c;"><i data-lucide="trash-2" style="width:16px; height:16px;"></i></button>
                     </div>
                 </div>
             </div>
@@ -817,7 +951,7 @@ document.addEventListener('submit', async (e) => {
                 clienteId = novo.id;
             }
 
-            // 2. Criar Agendamento
+            // 2. Criar/Atualizar Agendamento
             const agendaData = {
                 cliente_id: clienteId,
                 servico: servico,
@@ -827,25 +961,36 @@ document.addEventListener('submit', async (e) => {
                 status: 'pendente'
             };
 
-            const { data: agenda, error: errA } = await supabaseClient.from('agendamentos').insert([agendaData]).select().single();
-            if (errA) throw errA;
+            const agendaId = document.getElementById('a-id').value;
 
-            // 3. Registrar Entrada se houver
-            if (entrada > 0) {
-                const finData = {
-                    tipo: 'entrada',
-                    descricao: `Entrada: ${clienteNome}`,
-                    valor: entrada,
-                    data: new Date().toISOString(),
-                    agendamento_id: agenda.id
-                };
-                await supabaseClient.from('financeiro').insert([finData]);
+            if (agendaId) {
+                // Modo Edição
+                const { error: errU } = await supabaseClient.from('agendamentos').update(agendaData).eq('id', agendaId);
+                if (errU) throw errU;
+                alert('✅ Agendamento atualizado!');
+            } else {
+                // Modo Novo
+                const { data: agenda, error: errA } = await supabaseClient.from('agendamentos').insert([agendaData]).select().single();
+                if (errA) throw errA;
+
+                // 3. Registrar Entrada se houver (apenas para novo agendamento para evitar duplicar entrada na edição)
+                if (entrada > 0) {
+                    const finData = {
+                        tipo: 'entrada',
+                        descricao: `Entrada: ${clienteNome}`,
+                        valor: entrada,
+                        data: new Date().toISOString(),
+                        agendamento_id: agenda.id,
+                        forma_pagamento: 'Não especificado' // Pode ser melhorado depois
+                    };
+                    await supabaseClient.from('financeiro').insert([finData]);
+                }
+                alert('✅ Agendado com sucesso!');
             }
 
             hideAgendaForm();
             fetchAgenda();
             updateDashboard();
-            alert('✅ Agendado com sucesso!');
         } catch (err) {
             alert('❌ Erro: ' + err.message);
         } finally {
@@ -1294,7 +1439,12 @@ async function checkBirthdays() {
         });
 
         if (aniversariantes.length > 0) {
-            list.innerHTML = aniversariantes.map(c => c.nome).join(', ');
+            list.innerHTML = aniversariantes.map(c => {
+                const d = new Date(c.data_nascimento);
+                const dia = String(d.getDate()).padStart(2, '0');
+                const mes = String(d.getMonth() + 1).padStart(2, '0');
+                return `${c.nome} (${dia}/${mes})`;
+            }).join(', ');
             banner.style.display = 'block';
         } else {
             list.innerHTML = '<span style="font-weight:400; opacity:0.8;">Nenhum nesta semana</span>';
