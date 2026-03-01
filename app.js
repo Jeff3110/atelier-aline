@@ -529,7 +529,7 @@ document.addEventListener('submit', async (e) => {
             nome: document.getElementById('c-nome').value,
             telefone: document.getElementById('c-telefone').value,
             instagram: document.getElementById('c-instagram').value,
-            data_nascimento: document.getElementById('c-nascimento').value,
+            data_nascimento: document.getElementById('c-nascimento').value || null,
             observacoes: document.getElementById('c-obs').value,
             ficha_tecnica: document.getElementById('c-ficha').value
         };
@@ -962,7 +962,7 @@ document.addEventListener('submit', async (e) => {
                 const { data: novo, error: errC } = await supabaseClient.from('clientes').insert([{
                     nome: clienteNome,
                     telefone: document.getElementById('a-telefone').value.trim(),
-                    data_nascimento: document.getElementById('a-nascimento').value,
+                    data_nascimento: document.getElementById('a-nascimento').value || null,
                     ficha_tecnica: document.getElementById('a-ficha').value.trim()
                 }]).select().single();
                 if (errC) throw errC;
@@ -1497,7 +1497,7 @@ async function checkBirthdays() {
 
 // Inicialização
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto!');
+    console.log('Atelier Aline Silva pronto! v2.3');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 

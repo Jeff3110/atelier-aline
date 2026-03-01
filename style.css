@@ -180,6 +180,8 @@ main#main-content {
     z-index: 1000;
     flex-shrink: 0;
     /* Nav nunca encolhe */
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(70px + env(safe-area-inset-bottom));
 }
 
 .nav-item {
