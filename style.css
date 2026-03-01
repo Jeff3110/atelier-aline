@@ -56,7 +56,7 @@ main#main-content {
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: 100px;
+    padding-bottom: 120px;
     /* Espaço extra para não sumir atrás da barra fixa */
 }
 
@@ -227,7 +227,7 @@ main#main-content {
     align-items: center;
     justify-content: center;
     padding: 20px;
-    z-index: 2000;
+    z-index: 3000;
 }
 
 .modal.active {
@@ -243,6 +243,7 @@ main#main-content {
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
     max-height: 90vh;
     overflow-y: auto;
+    padding-bottom: calc(30px + env(safe-area-inset-bottom));
 }
 
 .modal-header {

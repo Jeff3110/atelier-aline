@@ -1497,7 +1497,7 @@ async function checkBirthdays() {
 
 // Inicialização
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v2.4');
+    console.log('Atelier Aline Silva pronto! v2.5');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 
