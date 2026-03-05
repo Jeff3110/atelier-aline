@@ -591,7 +591,10 @@ async function openClientProfile(id) {
             .select('*', { count: 'exact', head: true })
             .eq('cliente_id', id);
 
-        const bday = data.data_nascimento ? new Date(data.data_nascimento).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'Não informado';
+        const bday = data.data_nascimento ? (() => {
+            const [y, m, d] = data.data_nascimento.split('-');
+            return `${d}/${m}`;
+        })() : 'Não informado';
 
         content.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; background:var(--secondary-color); padding:10px; border-radius:8px;">
@@ -1466,26 +1469,33 @@ async function checkBirthdays() {
 
     try {
         const { data: clients } = await supabaseClient.from('clientes').select('nome, data_nascimento');
+
+        // Normalizar data atual para meia-noite
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
+
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
 
         const aniversariantes = clients.filter(c => {
             if (!c.data_nascimento) return false;
-            const bday = new Date(c.data_nascimento);
-            // Ajustar ano para o corrente para comparar apenas dia/mês
-            bday.setFullYear(today.getFullYear());
+
+            // Parse manual para evitar erro de Timezone (UTC)
+            const [y, m, d] = c.data_nascimento.split('-');
+            const bday = new Date(today.getFullYear(), m - 1, d);
+            bday.setHours(0, 0, 0, 0);
+
             return bday >= startOfWeek && bday <= endOfWeek;
         });
 
         if (aniversariantes.length > 0) {
             list.innerHTML = aniversariantes.map(c => {
-                const d = new Date(c.data_nascimento);
-                const dia = String(d.getDate()).padStart(2, '0');
-                const mes = String(d.getMonth() + 1).padStart(2, '0');
-                return `${c.nome} (${dia}/${mes})`;
+                const [y, m, d] = c.data_nascimento.split('-');
+                return `${c.nome} (${d}/${m})`;
             }).join(', ');
             banner.style.display = 'block';
         } else {
@@ -1497,7 +1507,7 @@ async function checkBirthdays() {
 
 // Inicialização
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v2.5');
+    console.log('Atelier Aline Silva pronto! v2.6');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 
