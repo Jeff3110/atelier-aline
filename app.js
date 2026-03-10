@@ -778,13 +778,14 @@ async function confirmarPagamento(forma) {
 
         if (error) throw error;
 
-        // Registrar no financeiro com a forma de pagamento e DATA ATUAL
+        // Registrar no financeiro com a forma de pagamento e DATA ATUAL LOCAL
+        const dataLocal = new Date().toLocaleDateString('en-CA');
         await supabaseClient.from('financeiro').insert([{
             tipo: 'entrada',
             descricao: `Saldo de serviço: ${nomeCliente}`,
             valor: restante,
             forma_pagamento: forma,
-            data: new Date().toISOString(),
+            data: new Date(dataLocal + 'T12:00:00').toISOString(), // GARANTE DIA LOCAL
             agendamento_id: id
         }]);
 
@@ -828,7 +829,7 @@ async function fetchAgenda() {
 
         // Ordenar alfabeticamente pelo nome do cliente (conforme pedido)
         data.sort((a, b) => {
-            const CACHE_NAME = 'atelier-v24';
+            const CACHE_NAME = 'atelier-v25';
             const nomeA = (a.clientes?.nome || '').toLowerCase();
             const nomeB = (b.clientes?.nome || '').toLowerCase();
             return nomeA.localeCompare(nomeB);
@@ -1015,12 +1016,13 @@ document.addEventListener('submit', async (e) => {
                 // Se a entrada aumentou, registrar a diferença no financeiro
                 const diferenca = entrada - valorAnterior;
                 if (diferenca > 0) {
+                    const dataLocal = new Date().toLocaleDateString('en-CA');
                     const forma = document.getElementById('a-forma-pagamento').value;
                     await supabaseClient.from('financeiro').insert([{
                         tipo: 'entrada',
                         descricao: `Ajuste Entrada: ${clienteNome}`,
                         valor: diferenca,
-                        data: new Date().toISOString(),
+                        data: new Date(dataLocal + 'T12:00:00').toISOString(), // GARANTE DIA LOCAL
                         agendamento_id: agendaId,
                         forma_pagamento: forma || 'Pix'
                     }]);
@@ -1032,12 +1034,13 @@ document.addEventListener('submit', async (e) => {
                 if (errA) throw errA;
 
                 if (entrada > 0) {
+                    const dataLocal = new Date().toLocaleDateString('en-CA');
                     const forma = document.getElementById('a-forma-pagamento').value;
                     await supabaseClient.from('financeiro').insert([{
                         tipo: 'entrada',
                         descricao: `Entrada: ${clienteNome}`,
                         valor: entrada,
-                        data: new Date().toISOString(),
+                        data: new Date(dataLocal + 'T12:00:00').toISOString(), // GARANTE DIA LOCAL
                         agendamento_id: agenda.id,
                         forma_pagamento: forma || 'Pix'
                     }]);
@@ -1143,8 +1146,12 @@ async function fetchFinanceiro() {
                 break;
         }
 
-        // Fix Timezone: Converter filtros locais para ISO string UTC compatível
-        query = query.gte('data', start.toISOString()).lte('data', end.toISOString());
+        // Fix Timezone: Converter filtros locais para strings ISO comparáveis
+        // Usamos T12:00:00Z como âncora para garantir que caia no dia solar correto
+        const startISO = start.toISOString();
+        const endISO = end.toISOString();
+
+        query = query.gte('data', startISO).lte('data', endISO);
 
         const { data, error } = await query.order('data', { ascending: false });
         if (error) throw error;
@@ -1482,16 +1489,13 @@ async function updateDashboard() {
             .gte('data_hora', startOfDay)
             .lte('data_hora', endOfDay);
 
-        // Somar entradas financeiras de hoje (incluindo entradas de serviços futuros)
-        const startOfFin = new Date(today + 'T00:00:00').toISOString();
-        const endOfFin = new Date(today + 'T23:59:59').toISOString();
-
+        // Somar entradas financeiras de hoje (USANDO FILTRO DE DATA NOON LOCAL)
         const { data: finEntries } = await supabaseClient
             .from('financeiro')
             .select('valor')
             .eq('tipo', 'entrada')
-            .gte('data', startOfFin)
-            .lte('data', endOfFin);
+            .gte('data', today + 'T00:00:00Z')
+            .lte('data', today + 'T23:59:59Z');
 
         const count = agenda?.length || 0;
         const revenue = finEntries?.reduce((sum, item) => sum + parseFloat(item.valor || 0), 0) || 0;
@@ -1552,7 +1556,7 @@ async function checkBirthdays() {
 
 // Inicialização
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v3.3');
+    console.log('Atelier Aline Silva pronto! v3.4');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 
