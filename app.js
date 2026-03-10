@@ -942,12 +942,27 @@ document.addEventListener('submit', async (e) => {
                     await supabaseClient.from('clientes').update({ ficha_tecnica: ((existing.ficha_tecnica || '') + '\n' + fichaNova).trim() }).eq('id', clienteId);
                 }
             } else {
-                const { data: novo, error: errNew } = await supabaseClient.from('clientes').insert([{ nome: clienteNome, telefone: document.getElementById('a-telefone').value, data_nascimento: document.getElementById('a-nascimento').value, ficha_tecnica: document.getElementById('a-ficha').value }]).select().single();
+                const { data: novo, error: errNew } = await supabaseClient.from('clientes').insert([{
+                    nome: clienteNome,
+                    telefone: document.getElementById('a-telefone').value,
+                    data_nascimento: document.getElementById('a-nascimento').value || null,
+                    ficha_tecnica: document.getElementById('a-ficha').value
+                }]).select();
+
                 if (errNew) throw errNew;
-                clienteId = novo.id;
+                if (!novo || novo.length === 0) throw new Error('Falha ao criar cliente.');
+                clienteId = novo[0].id;
             }
 
-            const agendaData = { cliente_id: clienteId, servico, data_hora: new Date(dataHora).toISOString(), valor, valor_pago: entrada, status: 'pendente' };
+            const agendaData = {
+                cliente_id: clienteId,
+                servico,
+                data_hora: new Date(dataHora).toISOString(),
+                valor,
+                valor_pago: entrada,
+                status: 'pendente'
+            };
+
             if (id) {
                 const { data: old, error: errOld } = await supabaseClient.from('agendamentos').select('valor_pago').eq('id', id).single();
                 if (errOld) throw errOld;
@@ -955,17 +970,34 @@ document.addEventListener('submit', async (e) => {
                 const diferenca = entrada - parseFloat(old?.valor_pago || 0);
                 if (diferenca > 0) {
                     const dataLocal = new Date().toLocaleDateString('en-CA');
-                    await supabaseClient.from('financeiro').insert([{ tipo: 'entrada', descricao: `Ajuste Entrada: ${clienteNome}`, valor: diferenca, data: new Date(dataLocal + 'T12:00:00').toISOString(), agendamento_id: id, forma_pagamento: document.getElementById('a-forma-pagamento').value || 'Pix' }]);
+                    await supabaseClient.from('financeiro').insert([{
+                        tipo: 'entrada',
+                        descricao: `Ajuste Entrada: ${clienteNome}`,
+                        valor: diferenca,
+                        data: new Date(dataLocal + 'T12:00:00').toISOString(),
+                        agendamento_id: id,
+                        forma_pagamento: document.getElementById('a-forma-pagamento').value || 'Pix'
+                    }]);
                 }
             } else {
-                const { data: agenda, error: errIns } = await supabaseClient.from('agendamentos').insert([agendaData]).select().single();
+                const { data: agendaRes, error: errIns } = await supabaseClient.from('agendamentos').insert([agendaData]).select();
                 if (errIns) throw errIns;
+                if (!agendaRes || agendaRes.length === 0) throw new Error('Falha ao criar agendamento.');
+
+                const agendaId = agendaRes[0].id;
                 if (entrada > 0) {
                     const dataLocal = new Date().toLocaleDateString('en-CA');
-                    await supabaseClient.from('financeiro').insert([{ tipo: 'entrada', descricao: `Entrada: ${clienteNome}`, valor: entrada, data: new Date(dataLocal + 'T12:00:00').toISOString(), agendamento_id: agenda.id, forma_pagamento: document.getElementById('a-forma-pagamento').value || 'Pix' }]);
+                    await supabaseClient.from('financeiro').insert([{
+                        tipo: 'entrada',
+                        descricao: `Entrada: ${clienteNome}`,
+                        valor: entrada,
+                        data: new Date(dataLocal + 'T12:00:00').toISOString(),
+                        agendamento_id: agendaId,
+                        forma_pagamento: document.getElementById('a-forma-pagamento').value || 'Pix'
+                    }]);
                 }
             }
-            alert('✅ Agendamento salvo!');
+            alert('✅ Agendamento salvo com sucesso!');
             hideAgendaForm();
             fetchAgenda();
             updateDashboard();
@@ -1070,7 +1102,7 @@ async function checkBirthdays() {
 
 // --- INICIALIZAÇÃO E SERVICE WORKER ---
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v3.7.3');
+    console.log('Atelier Aline Silva pronto! v3.7.4');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 

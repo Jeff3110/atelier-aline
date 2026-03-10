@@ -6,8 +6,8 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Atelier Aline Silva</title>
-    <link rel="stylesheet" href="style.css?v=3.7.3">
-    <link rel="manifest" href="manifest.json?v=3.7.3">
+    <link rel="stylesheet" href="style.css?v=3.7.4">
+    <link rel="manifest" href="manifest.json?v=3.7.4">
     <meta name="theme-color" content="#3d2524">
     <link rel="apple-touch-icon" href="assets/icon-512.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -37,7 +37,7 @@
                         style="position:absolute; top:35px; right:35px; background:none; border:none; color:var(--primary-color); opacity:0.3;"><i
                             data-lucide="trash-2" style="width:14px;"></i></button>
                     <span
-                        style="font-size: 0.6rem; opacity: 0.4; position: absolute; top: 10px; right: 10px;">v3.7.3</span>
+                        style="font-size: 0.6rem; opacity: 0.4; position: absolute; top: 10px; right: 10px;">v3.7.4</span>
                 </header>
 
                 <div class="stats-grid" id="birthday-banner-container" style="padding-bottom:0;">
@@ -289,6 +289,43 @@
             </div>
         </div>
 
+        <div id="modal-client" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="c-modal-title">Novo Cliente</h2>
+                    <button onclick="hideClientForm()" class="close-btn">&times;</button>
+                </div>
+                <form id="form-client">
+                    <input type="hidden" id="c-id">
+                    <div class="form-group">
+                        <label>Nome Completo</label>
+                        <input type="text" id="c-nome" placeholder="Ex: Maria Oliveira" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Telefone / WhatsApp</label>
+                        <input type="tel" id="c-telefone" placeholder="(00) 00000-0000">
+                    </div>
+                    <div class="form-group">
+                        <label>Instagram (@)</label>
+                        <input type="text" id="c-instagram" placeholder="Ex: @maria.nails">
+                    </div>
+                    <div class="form-group">
+                        <label>Data de Nascimento</label>
+                        <input type="date" id="c-nascimento">
+                    </div>
+                    <div class="form-group">
+                        <label>Ficha Técnica / Detalhes</label>
+                        <textarea id="c-ficha" rows="3" placeholder="Informações fixas da cliente..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Observação Extra (Pequena)</label>
+                        <input type="text" id="c-obs" placeholder="Ex: Mora perto do salão">
+                    </div>
+                    <button type="submit" id="btn-save-client" class="btn-primary">Salvar Cliente</button>
+                </form>
+            </div>
+        </div>
+
         <div id="modal-pagamento" class="modal">
             <div class="modal-content" style="text-align: center;">
                 <h2 id="p-pagamento-msg">Receber Pagamento</h2>
@@ -437,7 +474,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=3.7.3"></script>
+    <script src="app.js?v=3.7.4"></script>
     <script>
         lucide.createIcons();
     </script>
