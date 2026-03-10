@@ -1076,7 +1076,7 @@ async function checkBirthdays() {
         endOfWeek.setDate(startOfWeek.getDate() + 6);
         endOfWeek.setHours(23, 59, 59, 999);
 
-        const aniversariantes = clients.filter(c => {
+        let aniversariantes = clients.filter(c => {
             if (!c.data_nascimento) return false;
             const [y, m, d] = c.data_nascimento.split('-');
             const bday = new Date(now.getFullYear(), m - 1, d);
@@ -1084,14 +1084,26 @@ async function checkBirthdays() {
             return bday >= startOfWeek && bday <= endOfWeek;
         });
 
+        // Ordenar por dia
+        aniversariantes.sort((a, b) => {
+            const da = parseInt(a.data_nascimento.split('-')[2]);
+            const db = parseInt(b.data_nascimento.split('-')[2]);
+            return da - db;
+        });
+
         if (aniversariantes.length > 0) {
+            const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
             list.innerHTML = aniversariantes.map(c => {
                 const [y, m, d] = c.data_nascimento.split('-');
+                const bday = new Date(now.getFullYear(), m - 1, d);
+                const diaSemana = diasSemana[bday.getDay()];
                 const isToday = parseInt(d) === now.getDate() && parseInt(m) === (now.getMonth() + 1);
-                return isToday ? `<b>HOJE: ${c.nome} 🥳</b>` : `${c.nome} (${d}/${m})`;
-            }).join(', ');
+
+                if (isToday) return `<span style="display:block; margin: 4px 0;">🎉 <b>HOJE: ${c.nome} (${diaSemana})</b></span>`;
+                return `<span style="display:block; opacity:0.9; font-size: 0.85rem;">• ${c.nome}: ${d}/${m} (${diaSemana})</span>`;
+            }).join('');
         } else {
-            list.innerHTML = '<span style="font-weight:400; opacity:0.8;">Ninguém faz aniversário esta semana</span>';
+            list.innerHTML = '<span style="font-weight:400; opacity:0.8; font-size: 0.8rem;">Nenhum aniversário esta semana</span>';
         }
         banner.style.display = 'block';
     } catch (err) { console.error(err); }
@@ -1099,7 +1111,7 @@ async function checkBirthdays() {
 
 // --- INICIALIZAÇÃO E SERVICE WORKER ---
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v3.7.5');
+    console.log('Atelier Aline Silva pronto! v3.7.6');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 
