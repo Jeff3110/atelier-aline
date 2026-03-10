@@ -89,11 +89,16 @@
                     <h2 class="brand">Clientes</h2>
                 </header>
                 <div style="padding: 0 20px 15px;">
-                    <input type="text" id="cliente-search" placeholder="Buscar cliente..." onkeyup="fetchClientes()"
+                    <input type="text" id="client-search" placeholder="Buscar cliente..." onkeyup="filterClients()"
                         style="width:100%; padding:12px; border-radius:10px; border:1px solid #ddd;">
                 </div>
-                <div id="clientes-list" class="list-container" style="padding: 0 20px;">
+                <div id="clients-list" class="list-container" style="padding: 0 20px;">
                     <!-- Preenchido via JS -->
+                </div>
+                <div class="quick-actions" style="margin-top: 10px;">
+                    <button class="btn-primary" onclick="showClientForm()">
+                        <i data-lucide="user-plus"></i> Novo Cliente
+                    </button>
                 </div>
             </section>
 
@@ -113,8 +118,54 @@
 
             <section id="screen-financeiro" class="screen">
                 <header class="header">
-                    <h2 class="brand">Fluxo de Caixa</h2>
+                    <h2 class="brand">Financeiro</h2>
+                    <p class="greeting">Fluxo de Caixa</p>
                 </header>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px 20px;">
+                    <div class="filter-bar" id="fin-filters" style="padding: 0; margin: 0; flex: 1;">
+                        <button class="filter-btn active" onclick="setFinanceiroFilter('dia')">Dia</button>
+                        <button class="filter-btn" onclick="setFinanceiroFilter('semana')">Semana</button>
+                        <button class="filter-btn" onclick="setFinanceiroFilter('mes')">Mês</button>
+                        <button class="filter-btn" onclick="setFinanceiroFilter('ano')">Ano</button>
+                        <button class="filter-btn" onclick="setFinanceiroFilter('custom')">Personalizado</button>
+                    </div>
+                    <button class="btn-primary" onclick="toggleAcerto()"
+                        style="width: auto; padding: 8px 15px; background: var(--accent-color); font-size: 0.8rem; margin-left: 10px;">
+                        <i data-lucide="calculator"></i> Acerto
+                    </button>
+                </div>
+
+                <!-- Filtros de Forma de Pagamento -->
+                <div id="method-filters" class="stats-grid"
+                    style="grid-template-columns: repeat(4, 1fr); padding: 0 20px 15px; gap:8px;">
+                    <div class="stat-card active" onclick="setMethodFilter('todos')" id="f-m-todos"
+                        style="padding:10px; cursor:pointer; text-align:center; background:#eee; border-radius:8px;">
+                        <span style="font-size:0.6rem; font-weight:700;">TODOS</span>
+                    </div>
+                    <div class="stat-card" onclick="setMethodFilter('Pix')" id="f-m-pix"
+                        style="padding:10px; cursor:pointer; text-align:center; background:#fff; border-radius:8px; border:1px solid #eee;">
+                        <span style="font-size:0.6rem; font-weight:700;">PIX</span>
+                    </div>
+                    <div class="stat-card" onclick="setMethodFilter('Dinheiro')" id="f-m-dinheiro"
+                        style="padding:10px; cursor:pointer; text-align:center; background:#fff; border-radius:8px; border:1px solid #eee;">
+                        <span style="font-size:0.6rem; font-weight:700;">DINH.</span>
+                    </div>
+                    <div class="stat-card" onclick="setMethodFilter('Cartão')" id="f-m-cartao"
+                        style="padding:10px; cursor:pointer; text-align:center; background:#fff; border-radius:8px; border:1px solid #eee;">
+                        <span style="font-size:0.6rem; font-weight:700;">CARD</span>
+                    </div>
+                </div>
+
+                <div id="fin-custom-date" class="filter-bar"
+                    style="display:none; flex-direction:column; gap:10px; padding: 0 20px 15px;">
+                    <div style="display:flex; gap:10px;">
+                        <input type="date" id="f-start-date" class="filter-btn" style="flex:1;">
+                        <input type="date" id="f-end-date" class="filter-btn" style="flex:1;">
+                        <button onclick="fetchFinanceiro()" class="filter-btn active"><i
+                                data-lucide="search"></i></button>
+                    </div>
+                </div>
 
                 <div class="stats-grid">
                     <div class="stat-card" style="background:#2ecc7111;">
@@ -130,9 +181,6 @@
                 <div class="stat-card highlight" style="margin: 0 20px 20px; text-align:center;">
                     <span class="stat-label">Saldo em Caixa</span>
                     <span class="stat-value" id="fin-saldo">R$ 0,00</span>
-                    <button onclick="toggleAcerto()"
-                        style="background:none; border:none; color:white; font-size:0.7rem; margin-top:5px; text-decoration:underline; cursor:pointer;">Ver
-                        Sugestão de Acerto</button>
                 </div>
 
                 <div id="acerto-display"
@@ -148,34 +196,12 @@
                     </div>
                 </div>
 
-                <div class="filter-bar" id="fin-filters">
-                    <button class="filter-btn active" onclick="setFinanceiroFilter('dia')">Dia</button>
-                    <button class="filter-btn" onclick="setFinanceiroFilter('semana')">Semana</button>
-                    <button class="filter-btn" onclick="setFinanceiroFilter('mes')">Mês</button>
-                    <button class="filter-btn" onclick="setFinanceiroFilter('custom')">Personalizado</button>
-                </div>
-
-                <div id="fin-custom-date" class="filter-bar" style="display:none; flex-direction:column; gap:5px;">
-                    <div style="display:flex; gap:10px;">
-                        <input type="date" id="f-start-date" class="filter-btn" style="flex:1;">
-                        <input type="date" id="f-end-date" class="filter-btn" style="flex:1;">
-                        <button onclick="fetchFinanceiro()" class="filter-btn active"><i
-                                data-lucide="search"></i></button>
-                    </div>
-                </div>
-
-                <div class="filter-bar" style="margin-top:10px;">
-                    <button class="filter-btn active" id="f-m-todos" onclick="setMethodFilter('todos')">Todos</button>
-                    <button class="filter-btn" id="f-m-pix" onclick="setMethodFilter('Pix')">Pix</button>
-                    <button class="filter-btn" id="f-m-dinheiro" onclick="setMethodFilter('Dinheiro')">Dinheiro</button>
-                    <button class="filter-btn" id="f-m-cartao" onclick="setMethodFilter('Cartão')">Cartão</button>
-                </div>
-
                 <div id="financeiro-list" class="list-container" style="padding: 0 20px;">
                     <!-- Preenchido via JS -->
                 </div>
 
-                <div style="padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                <div class="actions-bar"
+                    style="padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap:15px;">
                     <button class="btn-primary" onclick="showFinanceiroForm('entrada')" style="background:#2ecc71;">
                         <i data-lucide="trending-up"></i> Entrada
                     </button>
