@@ -6,8 +6,8 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Atelier Aline Silva</title>
-    <link rel="stylesheet" href="style.css?v=2.9">
-    <link rel="manifest" href="manifest.json?v=2.9">
+    <link rel="stylesheet" href="style.css?v=3.1">
+    <link rel="manifest" href="manifest.json?v=3.1">
     <meta name="theme-color" content="#3d2524">
     <link rel="apple-touch-icon" href="assets/icon-512.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -31,7 +31,7 @@
                 <header class="header">
                     <img src="assets/logo.jpg?v=2.9" alt="Atelier Aline Silva" class="header-logo">
                     <span
-                        style="font-size: 0.6rem; opacity: 0.4; position: absolute; top: 10px; right: 10px;">v2.9</span>
+                        style="font-size: 0.6rem; opacity: 0.4; position: absolute; top: 10px; right: 10px;">v3.1</span>
                 </header>
 
                 <div class="stats-grid" id="birthday-banner-container" style="padding-bottom:0;">
@@ -61,8 +61,288 @@
                         <i data-lucide="plus"></i> Novo Agendamento
                     </button>
                 </div>
-            </section>
+                <section id="screen-agenda" class="screen">
+                    <header class="header">
+                        <h2 class="brand">Agenda</h2>
+                    </header>
+                    <div style="padding: 0 20px 15px;">
+                        <input type="date" id="agenda-date-filter" class="filter-btn" onchange="fetchAgenda()"
+                            style="width:100%; padding:12px; border-radius:10px;">
+                    </div>
+                    <div id="agenda-list" class="list-container" style="padding: 0 20px;">
+                        <!-- Preenchido via JS -->
+                    </div>
+                    <div class="quick-actions" style="margin-top: 10px;">
+                        <button class="btn-primary" onclick="showAgendaForm()">
+                            <i data-lucide="calendar-plus"></i> Novo Agendamento
+                        </button>
+                    </div>
+                </section>
+
+                <section id="screen-clientes" class="screen">
+                    <header class="header">
+                        <h2 class="brand">Clientes</h2>
+                    </header>
+                    <div style="padding: 0 20px 15px;">
+                        <input type="text" id="cliente-search" placeholder="Buscar cliente..." onkeyup="fetchClientes()"
+                            style="width:100%; padding:12px; border-radius:10px; border:1px solid #ddd;">
+                    </div>
+                    <div id="clientes-list" class="list-container" style="padding: 0 20px;">
+                        <!-- Preenchido via JS -->
+                    </div>
+                </section>
+
+                <section id="screen-servicos" class="screen">
+                    <header class="header">
+                        <h2 class="brand">Serviços</h2>
+                    </header>
+                    <div id="servicos-list" class="list-container" style="padding: 0 20px;">
+                        <!-- Preenchido via JS -->
+                    </div>
+                    <div class="quick-actions" style="margin-top: 10px;">
+                        <button class="btn-primary" onclick="showServicoForm()">
+                            <i data-lucide="plus-circle"></i> Novo Serviço
+                        </button>
+                    </div>
+                </section>
+
+                <section id="screen-financeiro" class="screen">
+                    <header class="header">
+                        <h2 class="brand">Fluxo de Caixa</h2>
+                    </header>
+
+                    <div class="stats-grid">
+                        <div class="stat-card" style="background:#2ecc7111;">
+                            <span class="stat-label" style="color:#2ecc71;">Entradas</span>
+                            <span class="stat-value" id="fin-entradas">R$ 0,00</span>
+                        </div>
+                        <div class="stat-card" style="background:#e74c3c11;">
+                            <span class="stat-label" style="color:#e74c3c;">Saídas</span>
+                            <span class="stat-value" id="fin-saidas">R$ 0,00</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card highlight" style="margin: 0 20px 20px; text-align:center;">
+                        <span class="stat-label">Saldo em Caixa</span>
+                        <span class="stat-value" id="fin-saldo">R$ 0,00</span>
+                        <button onclick="toggleAcerto()"
+                            style="background:none; border:none; color:white; font-size:0.7rem; margin-top:5px; text-decoration:underline; cursor:pointer;">Ver
+                            Sugestão de Acerto</button>
+                    </div>
+
+                    <div id="acerto-display"
+                        style="display:none; margin: 0 20px 20px; padding:15px; background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05); text-align:center;">
+                        <p style="font-size:0.8rem; font-weight:600; margin-bottom:10px;">Sugestão de Comissão:</p>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                            <div><span style="display:block; font-size:0.7rem;">40%</span><b id="acerto-40">R$ 0,00</b>
+                            </div>
+                            <div><span style="display:block; font-size:0.7rem;">50%</span><b id="acerto-50">R$ 0,00</b>
+                            </div>
+                            <div><span style="display:block; font-size:0.7rem;">60%</span><b id="acerto-60">R$ 0,00</b>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-bar" id="fin-filters">
+                        <button class="filter-btn active" onclick="setFinanceiroFilter('dia')">Dia</button>
+                        <button class="filter-btn" onclick="setFinanceiroFilter('semana')">Semana</button>
+                        <button class="filter-btn" onclick="setFinanceiroFilter('mes')">Mês</button>
+                        <button class="filter-btn" onclick="setFinanceiroFilter('custom')">Personalizado</button>
+                    </div>
+
+                    <div id="fin-custom-date" class="filter-bar" style="display:none; flex-direction:column; gap:5px;">
+                        <div style="display:flex; gap:10px;">
+                            <input type="date" id="f-start-date" class="filter-btn" style="flex:1;">
+                            <input type="date" id="f-end-date" class="filter-btn" style="flex:1;">
+                            <button onclick="fetchFinanceiro()" class="filter-btn active"><i
+                                    data-lucide="search"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="filter-bar" style="margin-top:10px;">
+                        <button class="filter-btn active" id="f-m-todos"
+                            onclick="setMethodFilter('todos')">Todos</button>
+                        <button class="filter-btn" id="f-m-pix" onclick="setMethodFilter('Pix')">Pix</button>
+                        <button class="filter-btn" id="f-m-dinheiro"
+                            onclick="setMethodFilter('Dinheiro')">Dinheiro</button>
+                        <button class="filter-btn" id="f-m-cartao" onclick="setMethodFilter('Cartão')">Cartão</button>
+                    </div>
+
+                    <div id="financeiro-list" class="list-container" style="padding: 0 20px;">
+                        <!-- Preenchido via JS -->
+                    </div>
+
+                    <div style="padding: 20px; display: grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                        <button class="btn-primary" onclick="showFinanceiroForm('entrada')" style="background:#2ecc71;">
+                            <i data-lucide="trending-up"></i> Entrada
+                        </button>
+                        <button class="btn-primary" onclick="showFinanceiroForm('saida')" style="background:#e74c3c;">
+                            <i data-lucide="trending-down"></i> Saída
+                        </button>
+                    </div>
+                </section>
         </main>
+
+        <!-- Modais -->
+        <div id="modal-agenda" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="a-modal-title">Novo Agendamento</h2>
+                    <button onclick="hideAgendaForm()" class="close-btn">&times;</button>
+                </div>
+                <form id="form-agenda">
+                    <input type="hidden" id="a-id">
+                    <div class="form-group">
+                        <label>Cliente</label>
+                        <input type="text" id="a-cliente" list="clients-datalist" placeholder="Nome da cliente"
+                            required>
+                        <datalist id="clients-datalist"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>Serviço</label>
+                        <select id="a-servico" onchange="updateAgendaPrice()" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Data e Hora</label>
+                        <input type="datetime-local" id="a-data" required>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label>Valor Total (R$)</label>
+                            <input type="number" id="a-valor" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Valor Pago / Entrada (R$)</label>
+                            <input type="number" id="a-entrada" step="0.01" value="0">
+                        </div>
+                    </div>
+                    <div class="form-group" id="a-forma-pagamento-group" style="display:none;">
+                        <label>Forma de Pagamento (da Entrada)</label>
+                        <select id="a-forma-pagamento">
+                            <option value="Pix">Pix</option>
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Cartão">Cartão</option>
+                        </select>
+                    </div>
+                    <hr style="margin: 10px 0; opacity: 0.2;">
+                    <div class="form-group">
+                        <label>Ficha Técnica / Observações</label>
+                        <textarea id="a-ficha" rows="3"
+                            placeholder="Ex: Unhas stiletto, cor vermelho sangue..."></textarea>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="form-group">
+                            <label>Telefone</label>
+                            <input type="tel" id="a-telefone" placeholder="(00) 00000-0000">
+                        </div>
+                        <div class="form-group">
+                            <label>Aniversário</label>
+                            <input type="date" id="a-nascimento">
+                        </div>
+                    </div>
+                    <button type="submit" id="btn-save-agenda" class="btn-primary">Agendar</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="modal-pagamento" class="modal">
+            <div class="modal-content" style="text-align: center;">
+                <h2 id="p-pagamento-msg">Receber Pagamento</h2>
+                <input type="hidden" id="p-id-agendamento">
+                <input type="hidden" id="p-valor-restante">
+                <input type="hidden" id="p-nome-cliente">
+                <p style="margin: 15px 0; color: #666;">Escolha a forma de recebimento:</p>
+                <div style="display: grid; gap: 10px;">
+                    <button class="btn-primary" onclick="confirmarPagamento('Pix')"
+                        style="background:#32BCAD;">Pix</button>
+                    <button class="btn-primary" onclick="confirmarPagamento('Dinheiro')"
+                        style="background:#2ecc71;">Dinheiro</button>
+                    <button class="btn-primary" onclick="confirmarPagamento('Cartão')"
+                        style="background:#3498db;">Cartão</button>
+                    <button class="btn-primary" onclick="hidePaymentModal()"
+                        style="background:#eee; color:#666; margin-top:10px;">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="modal-servico" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="s-modal-title">Novo Serviço</h2>
+                    <button onclick="hideServicoForm()" class="close-btn">&times;</button>
+                </div>
+                <form id="form-servico">
+                    <input type="hidden" id="s-id">
+                    <div class="form-group">
+                        <label>Nome do Serviço</label>
+                        <input type="text" id="s-nome" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Preço Sugerido (R$)</label>
+                        <input type="number" id="s-valor" step="0.01" required>
+                    </div>
+                    <button type="submit" id="btn-save-servico" class="btn-primary">Salvar Serviço</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="modal-financeiro" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="fin-modal-title">Nova Entrada</h2>
+                    <button onclick="hideFinanceiroForm()" class="close-btn">&times;</button>
+                </div>
+                <form id="form-financeiro">
+                    <input type="hidden" id="f-tipo">
+                    <div class="form-group">
+                        <label>Descrição</label>
+                        <input type="text" id="f-descricao" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Valor (R$)</label>
+                        <input type="number" id="f-valor" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Data</label>
+                        <input type="date" id="f-data" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Forma de Pagamento</label>
+                        <select id="f-forma-pagamento" required>
+                            <option value="Pix">Pix</option>
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Cartão">Cartão</option>
+                        </select>
+                    </div>
+                    <button type="submit" id="btn-save-financeiro" class="btn-primary">Salvar</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="modal-edit-financeiro" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Editar Transação</h2>
+                    <button onclick="hideEditFinForm()" class="close-btn">&times;</button>
+                </div>
+                <form id="form-edit-financeiro">
+                    <input type="hidden" id="ef-id">
+                    <div class="form-group">
+                        <label>Descrição</label>
+                        <input type="text" id="ef-descricao" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Valor (R$)</label>
+                        <input type="number" id="ef-valor" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Data</label>
+                        <input type="date" id="ef-data" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Atualizar</button>
+                </form>
+            </div>
+        </div>
 
         <!-- Navegação Inferior (Agora no final para ficar embaixo) -->
         <nav class="bottom-nav">
@@ -113,7 +393,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=2.9"></script>
+    <script src="app.js?v=3.1"></script>
     <script>
         lucide.createIcons();
     </script>
