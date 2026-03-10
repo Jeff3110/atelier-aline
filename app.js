@@ -149,66 +149,7 @@ function showClientForm() {
     document.getElementById('c-modal-title').innerText = 'Novo Cliente';
 }
 
-// Interceptar envio do formulário
-document.addEventListener('submit', async (e) => {
-    if (e.target.id === 'form-client') {
-        e.preventDefault();
-        console.log('--- Iniciando Cadastro de Cliente ---');
-
-        const btn = document.getElementById('btn-save-client');
-        btn.disabled = true;
-        btn.innerText = 'Salvando...';
-
-        const clientData = {
-            nome: document.getElementById('c-nome').value,
-            telefone: document.getElementById('c-telefone').value,
-            instagram: document.getElementById('c-instagram').value,
-            data_nascimento: document.getElementById('c-nascimento').value || null,
-            observacoes: document.getElementById('c-obs').value,
-            ficha_tecnica: document.getElementById('c-ficha').value
-        };
-
-        console.log('Dados coletados:', clientData);
-
-        if (!supabaseClient) {
-            console.error('Erro: supabaseClient não foi inicializado!');
-            alert('Erro: O sistema de banco de dados não carregou corretamente.');
-            btn.disabled = false;
-            btn.innerText = 'Salvar Cliente';
-            return;
-        }
-
-        const id = document.getElementById('c-id').value;
-
-        try {
-            if (id) {
-                // Modo Edição
-                const { error } = await supabaseClient
-                    .from('clientes')
-                    .update(clientData)
-                    .eq('id', id);
-                if (error) throw error;
-                alert('✅ Cliente atualizado com sucesso!');
-            } else {
-                // Modo Novo
-                const { error } = await supabaseClient
-                    .from('clientes')
-                    .insert([clientData]);
-                if (error) throw error;
-                alert('✅ Cliente cadastrado com sucesso!');
-            }
-
-            hideClientForm();
-            fetchClients();
-        } catch (err) {
-            console.error('Falha catastrófica ao salvar:', err);
-            alert('❌ Erro ao salvar cliente!\n\nDetalhe: ' + (err.message || 'Erro desconhecido. Verifique se o SQL foi rodado no painel do Supabase.'));
-        } finally {
-            btn.disabled = false;
-            btn.innerText = 'Salvar Cliente';
-        }
-    }
-});
+// (O listener de submit foi movido para o bloco unificado no final do arquivo)
 
 async function openClientProfile(id) {
     if (!id || id === 'undefined' || id === null) return;
@@ -311,11 +252,44 @@ function setAgendaToday() {
     }
 }
 
-function showAgendaForm() {
+async function showAgendaForm() {
     document.getElementById('modal-agenda').classList.add('active');
     document.getElementById('form-agenda').reset();
-    document.getElementById('a-id').value = '';
-    document.getElementById('a-modal-title').innerText = 'Novo Agendamento';
+    document.getElementById('btn-save-agenda').innerText = 'Agendar';
+
+    // Configurar monitoramento da forma de pagamento
+    const inputEntrada = document.getElementById('a-entrada');
+    inputEntrada.oninput = togglePaymentField;
+    togglePaymentField();
+
+    // Set data/hora seletor para hoje/agora
+    const now = new Date();
+    const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    document.getElementById('a-data').value = localNow;
+
+    // Popular datalist de clientes
+    const datalist = document.getElementById('clients-datalist');
+    try {
+        const { data } = await supabaseClient.from('clientes').select('nome').order('nome');
+        if (data) datalist.innerHTML = data.map(c => `<option value="${c.nome}">`).join('');
+    } catch (err) { console.error(err); }
+
+    fetchServicosForSelect();
+}
+
+function togglePaymentField() {
+    const val = parseFloat(document.getElementById('a-entrada').value || 0);
+    const group = document.getElementById('a-forma-pagamento-group');
+    const select = document.getElementById('a-forma-pagamento');
+    if (group && select) {
+        if (val > 0) {
+            group.style.display = 'block';
+            select.required = true;
+        } else {
+            group.style.display = 'none';
+            select.required = false;
+        }
+    }
 }
 
 function hideAgendaForm() {
@@ -515,175 +489,10 @@ function renderAgenda(items) {
     lucide.createIcons();
 }
 
-async function showAgendaForm() {
-    document.getElementById('modal-agenda').classList.add('active');
-    document.getElementById('form-agenda').reset();
-    document.getElementById('btn-save-agenda').innerText = 'Agendar';
+// (Funções showAgendaForm, hideAgendaForm, fetchServicosForSelect e updateAgendaPrice estão definidas no final do arquivo ou consolidadas abaixo)
 
-    // Configurar monitoramento da forma de pagamento
-    const inputEntrada = document.getElementById('a-entrada');
-    inputEntrada.oninput = togglePaymentField;
-    togglePaymentField();
 
-    // Set data/hora seletor para hoje/agora
-    const now = new Date();
-    const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
-    document.getElementById('a-data').value = localNow;
-
-    // Popular datalist de clientes
-    const datalist = document.getElementById('clients-datalist');
-    try {
-        const { data } = await supabaseClient.from('clientes').select('nome').order('nome');
-        if (data) datalist.innerHTML = data.map(c => `<option value="${c.nome}">`).join('');
-    } catch (err) { console.error(err); }
-
-    fetchServicosForSelect();
-}
-
-function togglePaymentField() {
-    const val = parseFloat(document.getElementById('a-entrada').value || 0);
-    const group = document.getElementById('a-forma-pagamento-group');
-    const select = document.getElementById('a-forma-pagamento');
-    if (group && select) {
-        if (val > 0) {
-            group.style.display = 'block';
-            select.required = true;
-        } else {
-            group.style.display = 'none';
-            select.required = false;
-        }
-    }
-}
-
-function hideAgendaForm() {
-    document.getElementById('modal-agenda').classList.remove('active');
-}
-
-async function fetchServicosForSelect() {
-    const select = document.getElementById('a-servico');
-    if (!select) return;
-    try {
-        const { data } = await supabaseClient.from('servicos').select('*').order('nome');
-        if (data) {
-            select.innerHTML = '<option value="">Selecione um serviço...</option>' +
-                data.map(s => `<option value="${s.nome}" data-price="${s.preco}">${s.nome} - R$ ${s.preco.toFixed(2)}</option>`).join('');
-        }
-    } catch (err) { console.error(err); }
-}
-
-function updateAgendaPrice() {
-    const select = document.getElementById('a-servico');
-    const option = select.options[select.selectedIndex];
-    if (option && option.getAttribute('data-price')) {
-        document.getElementById('a-valor').value = option.getAttribute('data-price');
-    }
-}
-
-// Interceptar envio do formulário de agenda
-document.addEventListener('submit', async (e) => {
-    if (e.target.id === 'form-agenda') {
-        e.preventDefault();
-        const btn = document.getElementById('btn-save-agenda');
-        btn.disabled = true;
-        btn.innerText = 'Salvando...';
-
-        const clienteNome = document.getElementById('a-cliente').value.trim();
-        const servico = document.getElementById('a-servico').value;
-        const dataHora = document.getElementById('a-data').value;
-        const valor = parseFloat(document.getElementById('a-valor').value || 0);
-        const entrada = parseFloat(document.getElementById('a-entrada').value || 0);
-
-        try {
-            // 1. Resolver Cliente (Buscar ou Criar)
-            let clienteId;
-            const { data: existing } = await supabaseClient.from('clientes').select('id, ficha_tecnica').eq('nome', clienteNome).maybeSingle();
-            if (existing) {
-                clienteId = existing.id;
-                // Atualizar ficha se preenchida
-                const fichaNova = document.getElementById('a-ficha').value.trim();
-                if (fichaNova) {
-                    const fichaAtual = existing.ficha_tecnica || '';
-                    if (!fichaAtual.includes(fichaNova)) {
-                        await supabaseClient.from('clientes').update({ ficha_tecnica: (fichaAtual + '\n' + fichaNova).trim() }).eq('id', clienteId);
-                    }
-                }
-            } else {
-                const { data: novo, error: errC } = await supabaseClient.from('clientes').insert([{
-                    nome: clienteNome,
-                    telefone: document.getElementById('a-telefone').value.trim(),
-                    data_nascimento: document.getElementById('a-nascimento').value || null,
-                    ficha_tecnica: document.getElementById('a-ficha').value.trim()
-                }]).select().single();
-                if (errC) throw errC;
-                clienteId = novo.id;
-            }
-
-            // 2. Criar/Atualizar Agendamento
-            const agendaData = {
-                cliente_id: clienteId,
-                servico: servico,
-                data_hora: new Date(dataHora).toISOString(),
-                valor: valor,
-                valor_pago: entrada,
-                status: 'pendente'
-            };
-
-            const agendaId = document.getElementById('a-id').value;
-
-            if (agendaId) {
-                // MODO EDIÇÃO: Verificar se o valor de entrada mudou para registrar nova movimentação
-                const { data: old } = await supabaseClient.from('agendamentos').select('valor_pago').eq('id', agendaId).single();
-                const valorAnterior = parseFloat(old?.valor_pago || 0);
-
-                const { error: errU } = await supabaseClient.from('agendamentos').update(agendaData).eq('id', agendaId);
-                if (errU) throw errU;
-
-                // Se a entrada aumentou, registrar a diferença no financeiro
-                const diferenca = entrada - valorAnterior;
-                if (diferenca > 0) {
-                    const dataLocal = new Date().toLocaleDateString('en-CA');
-                    const forma = document.getElementById('a-forma-pagamento').value;
-                    await supabaseClient.from('financeiro').insert([{
-                        tipo: 'entrada',
-                        descricao: `Ajuste Entrada: ${clienteNome}`,
-                        valor: diferenca,
-                        data: new Date(dataLocal + 'T12:00:00').toISOString(), // GARANTE DIA LOCAL
-                        agendamento_id: agendaId,
-                        forma_pagamento: forma || 'Pix'
-                    }]);
-                }
-                alert('✅ Agendamento atualizado!');
-            } else {
-                // Modo Novo
-                const { data: agenda, error: errA } = await supabaseClient.from('agendamentos').insert([agendaData]).select().single();
-                if (errA) throw errA;
-
-                if (entrada > 0) {
-                    const dataLocal = new Date().toLocaleDateString('en-CA');
-                    const forma = document.getElementById('a-forma-pagamento').value;
-                    await supabaseClient.from('financeiro').insert([{
-                        tipo: 'entrada',
-                        descricao: `Entrada: ${clienteNome}`,
-                        valor: entrada,
-                        data: new Date(dataLocal + 'T12:00:00').toISOString(), // GARANTE DIA LOCAL
-                        agendamento_id: agenda.id,
-                        forma_pagamento: forma || 'Pix'
-                    }]);
-                }
-                alert('✅ Agendado com sucesso!');
-            }
-
-            hideAgendaForm();
-            fetchAgenda();
-            updateDashboard();
-        } catch (err) {
-            alert('❌ Erro: ' + err.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = 'Agendar';
-        }
-    }
-});
+// (O listener de submit de agenda foi movido para o bloco unificado abaixo)
 
 // --- MÓDULO FINANCEIRO ---
 
@@ -829,29 +638,7 @@ function hideEditFinForm() {
     document.getElementById('modal-edit-financeiro').classList.remove('active');
 }
 
-document.addEventListener('submit', async (e) => {
-    if (e.target.id === 'form-edit-financeiro') {
-        e.preventDefault();
-        const id = document.getElementById('ef-id').value;
-        const updateData = {
-            descricao: document.getElementById('ef-descricao').value,
-            valor: parseFloat(document.getElementById('ef-valor').value),
-            data: document.getElementById('ef-data').value
-        };
-
-        try {
-            const { error } = await supabaseClient.from('financeiro').update(updateData).eq('id', id);
-            if (error) throw error;
-
-            hideEditFinForm();
-            fetchFinanceiro();
-            updateDashboard();
-            alert('✅ Transação atualizada!');
-        } catch (err) {
-            alert('❌ Erro ao atualizar: ' + err.message);
-        }
-    }
-});
+// (O listener de submit de edição financeira foi unificado abaixo)
 
 function renderFinanceiro(items) {
     const listEl = document.getElementById('financeiro-list');
@@ -939,40 +726,7 @@ function hideFinanceiroForm() {
     document.getElementById('form-financeiro').reset();
 }
 
-document.addEventListener('submit', async (e) => {
-    if (e.target.id === 'form-financeiro') {
-        e.preventDefault();
-        const btn = document.getElementById('btn-save-financeiro');
-        btn.disabled = true;
-        btn.innerText = 'Salvando...';
-
-        const rawDate = document.getElementById('f-data').value;
-        const valorRaw = document.getElementById('f-valor').value;
-        const valor = parseFloat(valorRaw.replace(',', '.'));
-
-        const finData = {
-            tipo: document.getElementById('f-tipo').value,
-            descricao: document.getElementById('f-descricao').value,
-            valor: valor,
-            data: new Date(rawDate + 'T12:00:00').toISOString(),
-            forma_pagamento: document.getElementById('f-forma-pagamento').value
-        };
-
-        try {
-            const { error } = await supabaseClient.from('financeiro').insert([finData]);
-            if (error) throw error;
-
-            hideFinanceiroForm();
-            fetchFinanceiro();
-            alert('✅ Registro salvo!');
-        } catch (err) {
-            alert('❌ Erro ao salvar: ' + err.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = 'Salvar';
-        }
-    }
-});
+// (O listener de submit de novo financeiro foi unificado abaixo)
 
 // --- MÓDULO DE SERVIÇOS ---
 
@@ -1072,43 +826,7 @@ function updateAgendaPrice() {
     }
 }
 
-document.addEventListener('submit', async (e) => {
-    if (e.target.id === 'form-servico') {
-        e.preventDefault();
-        const btn = document.getElementById('btn-save-servico');
-        btn.disabled = true;
-        btn.innerText = 'Salvando...';
-
-        const servicoData = {
-            nome: document.getElementById('s-nome').value,
-            valor: parseFloat(document.getElementById('s-valor').value)
-        };
-
-        const id = document.getElementById('s-id').value;
-
-        try {
-            if (id) {
-                // Atualização
-                const { error } = await supabaseClient.from('servicos').update(servicoData).eq('id', id);
-                if (error) throw error;
-                alert('✅ Serviço atualizado com sucesso!');
-            } else {
-                // Inserção
-                const { error } = await supabaseClient.from('servicos').insert([servicoData]);
-                if (error) throw error;
-                alert('✅ Serviço cadastrado com sucesso!');
-            }
-
-            hideServicoForm();
-            fetchServicos();
-        } catch (err) {
-            alert('❌ Erro ao salvar serviço: ' + err.message);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = 'Salvar Serviço';
-        }
-    }
-});
+// (O listener de submit de serviços foi unificado abaixo)
 
 async function updateDashboard() {
     try {
@@ -1157,56 +875,149 @@ async function updateDashboard() {
     } catch (err) { console.error('Dashboard error:', err); }
 }
 
-async function checkBirthdays() {
-    const banner = document.getElementById('birthday-banner-container');
-    const list = document.getElementById('birthday-list');
-    if (!banner || !list) return;
+// --- BLOCO UNIFICADO DE SUBMIT (v3.7) ---
+document.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const target = e.target;
 
-    try {
-        const { data: clients } = await supabaseClient.from('clientes').select('nome, data_nascimento');
+    // --- CLIENTES ---
+    if (target.id === 'form-client') {
+        const btn = document.getElementById('btn-save-client');
+        btn.disabled = true;
+        btn.innerText = 'Salvando...';
+        try {
+            const id = document.getElementById('c-id').value;
+            const data = {
+                nome: document.getElementById('c-nome').value,
+                telefone: document.getElementById('c-telefone').value,
+                instagram: document.getElementById('c-instagram').value,
+                data_nascimento: document.getElementById('c-nascimento').value || null,
+                observacoes: document.getElementById('c-obs').value,
+                ficha_tecnica: document.getElementById('c-ficha').value
+            };
+            if (id) await supabaseClient.from('clientes').update(data).eq('id', id);
+            else await supabaseClient.from('clientes').insert([data]);
+            alert('✅ Cliente salvo!');
+            hideClientForm();
+            fetchClients();
+        } catch (err) { alert('❌ Erro: ' + err.message); }
+        finally { btn.disabled = false; btn.innerText = 'Salvar Cliente'; }
+    }
 
-        // Normalizar data atual para meia-noite
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+    // --- AGENDA ---
+    if (target.id === 'form-agenda') {
+        const btn = document.getElementById('btn-save-agenda');
+        btn.disabled = true;
+        btn.innerText = 'Salvando...';
+        try {
+            const id = document.getElementById('a-id').value;
+            const clienteNome = document.getElementById('a-cliente').value.trim();
+            const servico = document.getElementById('a-servico').value;
+            const dataHora = document.getElementById('a-data').value;
+            const valor = parseFloat(document.getElementById('a-valor').value || 0);
+            const entrada = parseFloat(document.getElementById('a-entrada').value || 0);
 
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
+            let clienteId;
+            const { data: existing } = await supabaseClient.from('clientes').select('id, ficha_tecnica').eq('nome', clienteNome).maybeSingle();
+            if (existing) {
+                clienteId = existing.id;
+                const fichaNova = document.getElementById('a-ficha').value.trim();
+                if (fichaNova && !existing.ficha_tecnica?.includes(fichaNova)) {
+                    await supabaseClient.from('clientes').update({ ficha_tecnica: (existing.ficha_tecnica || '' + '\n' + fichaNova).trim() }).eq('id', clienteId);
+                }
+            } else {
+                const { data: novo } = await supabaseClient.from('clientes').insert([{ nome: clienteNome, telefone: document.getElementById('a-telefone').value, data_nascimento: document.getElementById('a-nascimento').value, ficha_tecnica: document.getElementById('a-ficha').value }]).select().single();
+                clienteId = novo.id;
+            }
 
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
+            const agendaData = { cliente_id: clienteId, servico, data_hora: new Date(dataHora).toISOString(), valor, valor_pago: entrada, status: 'pendente' };
+            if (id) {
+                const { data: old } = await supabaseClient.from('agendamentos').select('valor_pago').eq('id', id).single();
+                await supabaseClient.from('agendamentos').update(agendaData).eq('id', id);
+                const diferenca = entrada - parseFloat(old?.valor_pago || 0);
+                if (diferenca > 0) {
+                    const dataLocal = new Date().toLocaleDateString('en-CA');
+                    await supabaseClient.from('financeiro').insert([{ tipo: 'entrada', descricao: `Ajuste Entrada: ${clienteNome}`, valor: diferenca, data: new Date(dataLocal + 'T12:00:00').toISOString(), agendamento_id: id, forma_pagamento: document.getElementById('a-forma-pagamento').value || 'Pix' }]);
+                }
+            } else {
+                const { data: agenda } = await supabaseClient.from('agendamentos').insert([agendaData]).select().single();
+                if (entrada > 0) {
+                    const dataLocal = new Date().toLocaleDateString('en-CA');
+                    await supabaseClient.from('financeiro').insert([{ tipo: 'entrada', descricao: `Entrada: ${clienteNome}`, valor: entrada, data: new Date(dataLocal + 'T12:00:00').toISOString(), agendamento_id: agenda.id, forma_pagamento: document.getElementById('a-forma-pagamento').value || 'Pix' }]);
+                }
+            }
+            alert('✅ Agendamento salvo!');
+            hideAgendaForm();
+            fetchAgenda();
+            updateDashboard();
+        } catch (err) { alert('❌ Erro: ' + err.message); }
+        finally { btn.disabled = false; btn.innerText = 'Agendar'; }
+    }
 
-        const aniversariantes = clients.filter(c => {
-            if (!c.data_nascimento) return false;
+    // --- FINANÇAS (NOVO) ---
+    if (target.id === 'form-financeiro') {
+        const btn = document.getElementById('btn-save-financeiro');
+        btn.disabled = true;
+        try {
+            const rawDate = document.getElementById('f-data').value;
+            const valor = parseFloat(document.getElementById('f-valor').value.toString().replace(',', '.'));
+            const data = {
+                tipo: document.getElementById('f-tipo').value,
+                descricao: document.getElementById('f-descricao').value,
+                valor,
+                data: new Date(rawDate + 'T12:00:00').toISOString(),
+                forma_pagamento: document.getElementById('f-forma-pagamento').value
+            };
+            await supabaseClient.from('financeiro').insert([data]);
+            alert('✅ Registro salvo!');
+            hideFinanceiroForm();
+            fetchFinanceiro();
+            updateDashboard();
+        } catch (err) { alert('❌ Erro: ' + err.message); }
+        finally { btn.disabled = false; }
+    }
 
-            // Parse manual para evitar erro de Timezone (UTC)
-            const [y, m, d] = c.data_nascimento.split('-');
-            const bday = new Date(today.getFullYear(), m - 1, d);
-            bday.setHours(0, 0, 0, 0);
+    // --- FINANÇAS (EDIÇÃO) ---
+    if (target.id === 'form-edit-financeiro') {
+        try {
+            const id = document.getElementById('ef-id').value;
+            const data = {
+                descricao: document.getElementById('ef-descricao').value,
+                valor: parseFloat(document.getElementById('ef-valor').value),
+                data: document.getElementById('ef-data').value
+            };
+            await supabaseClient.from('financeiro').update(data).eq('id', id);
+            alert('✅ Transação atualizada!');
+            hideEditFinForm();
+            fetchFinanceiro();
+            updateDashboard();
+        } catch (err) { alert('❌ Erro: ' + err.message); }
+    }
 
-            return bday >= startOfWeek && bday <= endOfWeek;
-        });
+    // --- SERVIÇOS ---
+    if (target.id === 'form-servico') {
+        const btn = document.getElementById('btn-save-servico');
+        btn.disabled = true;
+        try {
+            const id = document.getElementById('s-id').value;
+            const data = { nome: document.getElementById('s-nome').value, valor: parseFloat(document.getElementById('s-valor').value) };
+            if (id) await supabaseClient.from('servicos').update(data).eq('id', id);
+            else await supabaseClient.from('servicos').insert([data]);
+            alert('✅ Serviço salvo!');
+            hideServicoForm();
+            fetchServicos();
+        } catch (err) { alert('❌ Erro: ' + err.message); }
+        finally { btn.disabled = false; }
+    }
+});
 
-        if (aniversariantes.length > 0) {
-            list.innerHTML = aniversariantes.map(c => {
-                const [y, m, d] = c.data_nascimento.split('-');
-                return `${c.nome} (${d}/${m})`;
-            }).join(', ');
-            banner.style.display = 'block';
-        } else {
-            list.innerHTML = '<span style="font-weight:400; opacity:0.8;">Nenhum nesta semana</span>';
-            banner.style.display = 'block';
-        }
-    } catch (err) { console.error(err); }
-}
 
-// Inicialização
+// --- INICIALIZAÇÃO E SERVICE WORKER ---
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v3.6');
+    console.log('Atelier Aline Silva pronto! v3.7');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 
-    // Registrar Service Worker para PWA
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js')
             .then(() => console.log('Service Worker registrado!'))
