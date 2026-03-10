@@ -918,21 +918,25 @@ document.addEventListener('submit', async (e) => {
             const entrada = parseFloat(document.getElementById('a-entrada').value || 0);
 
             let clienteId;
-            const { data: existing } = await supabaseClient.from('clientes').select('id, ficha_tecnica').eq('nome', clienteNome).maybeSingle();
+            const { data: existing, error: errExist } = await supabaseClient.from('clientes').select('id, ficha_tecnica').eq('nome', clienteNome).maybeSingle();
+            if (errExist) throw errExist;
+
             if (existing) {
                 clienteId = existing.id;
                 const fichaNova = document.getElementById('a-ficha').value.trim();
-                if (fichaNova && !existing.ficha_tecnica?.includes(fichaNova)) {
-                    await supabaseClient.from('clientes').update({ ficha_tecnica: (existing.ficha_tecnica || '' + '\n' + fichaNova).trim() }).eq('id', clienteId);
+                if (fichaNova && !(existing.ficha_tecnica || '').includes(fichaNova)) {
+                    await supabaseClient.from('clientes').update({ ficha_tecnica: ((existing.ficha_tecnica || '') + '\n' + fichaNova).trim() }).eq('id', clienteId);
                 }
             } else {
-                const { data: novo } = await supabaseClient.from('clientes').insert([{ nome: clienteNome, telefone: document.getElementById('a-telefone').value, data_nascimento: document.getElementById('a-nascimento').value, ficha_tecnica: document.getElementById('a-ficha').value }]).select().single();
+                const { data: novo, error: errNew } = await supabaseClient.from('clientes').insert([{ nome: clienteNome, telefone: document.getElementById('a-telefone').value, data_nascimento: document.getElementById('a-nascimento').value, ficha_tecnica: document.getElementById('a-ficha').value }]).select().single();
+                if (errNew) throw errNew;
                 clienteId = novo.id;
             }
 
             const agendaData = { cliente_id: clienteId, servico, data_hora: new Date(dataHora).toISOString(), valor, valor_pago: entrada, status: 'pendente' };
             if (id) {
-                const { data: old } = await supabaseClient.from('agendamentos').select('valor_pago').eq('id', id).single();
+                const { data: old, error: errOld } = await supabaseClient.from('agendamentos').select('valor_pago').eq('id', id).single();
+                if (errOld) throw errOld;
                 await supabaseClient.from('agendamentos').update(agendaData).eq('id', id);
                 const diferenca = entrada - parseFloat(old?.valor_pago || 0);
                 if (diferenca > 0) {
@@ -940,7 +944,8 @@ document.addEventListener('submit', async (e) => {
                     await supabaseClient.from('financeiro').insert([{ tipo: 'entrada', descricao: `Ajuste Entrada: ${clienteNome}`, valor: diferenca, data: new Date(dataLocal + 'T12:00:00').toISOString(), agendamento_id: id, forma_pagamento: document.getElementById('a-forma-pagamento').value || 'Pix' }]);
                 }
             } else {
-                const { data: agenda } = await supabaseClient.from('agendamentos').insert([agendaData]).select().single();
+                const { data: agenda, error: errIns } = await supabaseClient.from('agendamentos').insert([agendaData]).select().single();
+                if (errIns) throw errIns;
                 if (entrada > 0) {
                     const dataLocal = new Date().toLocaleDateString('en-CA');
                     await supabaseClient.from('financeiro').insert([{ tipo: 'entrada', descricao: `Entrada: ${clienteNome}`, valor: entrada, data: new Date(dataLocal + 'T12:00:00').toISOString(), agendamento_id: agenda.id, forma_pagamento: document.getElementById('a-forma-pagamento').value || 'Pix' }]);
@@ -1011,10 +1016,52 @@ document.addEventListener('submit', async (e) => {
     }
 });
 
+async function checkBirthdays() {
+    const banner = document.getElementById('birthday-banner-container');
+    const list = document.getElementById('birthday-list');
+    if (!banner || !list) return;
+
+    try {
+        const { data: clients } = await supabaseClient.from('clientes').select('nome, data_nascimento');
+
+        // Normalizar data atual para meia-noite
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - today.getDay());
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        const aniversariantes = clients.filter(c => {
+            if (!c.data_nascimento) return false;
+
+            // Parse manual para evitar erro de Timezone (UTC)
+            const [y, m, d] = c.data_nascimento.split('-');
+            const bday = new Date(today.getFullYear(), m - 1, d);
+            bday.setHours(0, 0, 0, 0);
+
+            return bday >= startOfWeek && bday <= endOfWeek;
+        });
+
+        if (aniversariantes.length > 0) {
+            list.innerHTML = aniversariantes.map(c => {
+                const [y, m, d] = c.data_nascimento.split('-');
+                return `${c.nome} (${d}/${m})`;
+            }).join(', ');
+            banner.style.display = 'block';
+        } else {
+            list.innerHTML = '<span style="font-weight:400; opacity:0.8;">Nenhum nesta semana</span>';
+            banner.style.display = 'block';
+        }
+    } catch (err) { console.error(err); }
+}
 
 // --- INICIALIZAÇÃO E SERVICE WORKER ---
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v3.7');
+    console.log('Atelier Aline Silva pronto! v3.7.1');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 
