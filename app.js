@@ -717,6 +717,7 @@ async function editAgendamento(id) {
 
         document.getElementById('a-valor').value = data.valor;
         document.getElementById('a-entrada').value = data.valor_pago || 0;
+        togglePaymentField(); // Atualizar visibilidade da forma de pagamento
         document.getElementById('a-modal-title').innerText = 'Editar Agendamento';
     } catch (err) {
         alert('Erro ao carregar agendamento: ' + err.message);
@@ -825,6 +826,7 @@ async function fetchAgenda() {
 
         // Ordenar alfabeticamente pelo nome do cliente (conforme pedido)
         data.sort((a, b) => {
+            const CACHE_NAME = 'atelier-v20';
             const nomeA = (a.clientes?.nome || '').toLowerCase();
             const nomeB = (b.clientes?.nome || '').toLowerCase();
             return nomeA.localeCompare(nomeB);
@@ -882,67 +884,23 @@ function renderAgenda(items) {
             </div>
         `;
     }).join('');
-}
-
-async function quitarSaldo(id, restante, nomeCliente) {
-    if (!confirm(`Deseja liquidar o saldo de R$ ${restante.toFixed(2)} deste serviço?`)) return;
-
-    try {
-        // Buscar agendamento atual para somar o valor_pago
-        const { data: agenda } = await supabaseClient.from('agendamentos').select('valor, valor_pago').eq('id', id).single();
-        const novoPago = parseFloat(agenda.valor_pago || 0) + restante;
-
-        const { error } = await supabaseClient
-            .from('agendamentos')
-            .update({ valor_pago: novoPago, pago: true })
-            .eq('id', id);
-
-        if (error) throw error;
-
-        // Registrar no financeiro de HOJE
-        const finData = {
-            tipo: 'entrada',
-            descricao: `Acerto: ${nomeCliente}`,
-            valor: restante,
-            data: new Date().toISOString().split('T')[0],
-            agendamento_id: id
-        };
-        await supabaseClient.from('financeiro').insert([finData]);
-
-        alert('✅ Saldo liquidado e registrado no caixa de hoje!');
-        fetchAgenda();
-        updateDashboard();
-    } catch (err) {
-        alert('❌ Erro ao liquidar: ' + err.message);
-    }
+    lucide.createIcons();
 }
 
 async function showAgendaForm() {
     document.getElementById('modal-agenda').classList.add('active');
     document.getElementById('form-agenda').reset();
     document.getElementById('btn-save-agenda').innerText = 'Agendar';
-    document.getElementById('a-forma-pagamento-group').style.display = 'none';
-    document.getElementById('a-forma-pagamento').required = false;
 
-    // Monitorar valor de entrada para mostrar forma de pagamento
+    // Configurar monitoramento da forma de pagamento
     const inputEntrada = document.getElementById('a-entrada');
-    inputEntrada.oninput = () => {
-        const val = parseFloat(inputEntrada.value || 0);
-        const group = document.getElementById('a-forma-pagamento-group');
-        const select = document.getElementById('a-forma-pagamento');
-        if (val > 0) {
-            group.style.display = 'block';
-            select.required = true;
-        } else {
-            group.style.display = 'none';
-            select.required = false;
-        }
-    };
+    inputEntrada.oninput = togglePaymentField;
+    togglePaymentField();
 
     // Set data/hora seletor para hoje/agora
     const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    document.getElementById('a-data').value = now.toISOString().slice(0, 16);
+    const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+    document.getElementById('a-data').value = localNow;
 
     // Popular datalist de clientes
     const datalist = document.getElementById('clients-datalist');
@@ -954,9 +912,43 @@ async function showAgendaForm() {
     fetchServicosForSelect();
 }
 
+function togglePaymentField() {
+    const val = parseFloat(document.getElementById('a-entrada').value || 0);
+    const group = document.getElementById('a-forma-pagamento-group');
+    const select = document.getElementById('a-forma-pagamento');
+    if (group && select) {
+        if (val > 0) {
+            group.style.display = 'block';
+            select.required = true;
+        } else {
+            group.style.display = 'none';
+            select.required = false;
+        }
+    }
+}
+
 function hideAgendaForm() {
     document.getElementById('modal-agenda').classList.remove('active');
-    document.getElementById('form-agenda').reset();
+}
+
+async function fetchServicosForSelect() {
+    const select = document.getElementById('a-servico');
+    if (!select) return;
+    try {
+        const { data } = await supabaseClient.from('servicos').select('*').order('nome');
+        if (data) {
+            select.innerHTML = '<option value="">Selecione um serviço...</option>' +
+                data.map(s => `<option value="${s.nome}" data-price="${s.preco}">${s.nome} - R$ ${s.preco.toFixed(2)}</option>`).join('');
+        }
+    } catch (err) { console.error(err); }
+}
+
+function updateAgendaPrice() {
+    const select = document.getElementById('a-servico');
+    const option = select.options[select.selectedIndex];
+    if (option && option.getAttribute('data-price')) {
+        document.getElementById('a-valor').value = option.getAttribute('data-price');
+    }
 }
 
 // Interceptar envio do formulário de agenda
@@ -1095,13 +1087,13 @@ async function fetchFinanceiro() {
         let query = supabaseClient.from('financeiro').select('*');
 
         const now = new Date();
-        let start = new Date();
-        let end = new Date();
+        const localToday = now.toLocaleDateString('en-CA');
+        let start = new Date(localToday + 'T00:00:00');
+        let end = new Date(localToday + 'T23:59:59');
 
         switch (currentFinFilter) {
             case 'dia':
-                start.setHours(0, 0, 0, 0);
-                end.setHours(23, 59, 59, 999);
+                // Já definido como localToday acima
                 break;
             case 'semana':
                 const day = now.getDay();
@@ -1296,11 +1288,12 @@ document.addEventListener('submit', async (e) => {
         btn.disabled = true;
         btn.innerText = 'Salvando...';
 
+        const rawDate = document.getElementById('f-data').value;
         const finData = {
             tipo: document.getElementById('f-tipo').value,
             descricao: document.getElementById('f-descricao').value,
             valor: parseFloat(document.getElementById('f-valor').value),
-            data: document.getElementById('f-data').value,
+            data: new Date(rawDate + 'T12:00:00').toISOString(), // Garantir meio-dia local para cair no dia certo
             forma_pagamento: document.getElementById('f-forma-pagamento').value
         };
 
@@ -1539,7 +1532,7 @@ async function checkBirthdays() {
 
 // Inicialização
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v2.6');
+    console.log('Atelier Aline Silva pronto! v2.9');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 
