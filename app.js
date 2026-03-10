@@ -766,12 +766,14 @@ async function confirmarPagamento(forma) {
     const nome = document.getElementById('p-nome-cliente').value;
 
     try {
-        const { data: agenda } = await supabaseClient.from('agendamentos').select('valor_pago').eq('id', id).single();
-        const novoPago = parseFloat(agenda.valor_pago || 0) + restante;
+        const { data: agenda } = await supabaseClient.from('agendamentos').select('valor_pago, clientes(nome)').eq('id', id).single();
+        const nomeCliente = agenda.clientes?.nome || nome;
+        const valorJaPago = parseFloat(agenda.valor_pago || 0);
+        const novoTotalPago = valorJaPago + restante;
 
         const { error } = await supabaseClient
             .from('agendamentos')
-            .update({ valor_pago: novoPago, pago: true, status: 'concluido' })
+            .update({ valor_pago: novoTotalPago, pago: true, status: 'concluido' })
             .eq('id', id);
 
         if (error) throw error;
@@ -779,10 +781,10 @@ async function confirmarPagamento(forma) {
         // Registrar no financeiro com a forma de pagamento e DATA ATUAL
         await supabaseClient.from('financeiro').insert([{
             tipo: 'entrada',
-            descricao: `Saldo de serviço: ${nome}`,
+            descricao: `Saldo de serviço: ${nomeCliente}`,
             valor: restante,
             forma_pagamento: forma,
-            data: new Date().toISOString(), // AGORA USA A DATA REAL DO RECEBIMENTO
+            data: new Date().toISOString(),
             agendamento_id: id
         }]);
 
@@ -826,7 +828,7 @@ async function fetchAgenda() {
 
         // Ordenar alfabeticamente pelo nome do cliente (conforme pedido)
         data.sort((a, b) => {
-            const CACHE_NAME = 'atelier-v23';
+            const CACHE_NAME = 'atelier-v24';
             const nomeA = (a.clientes?.nome || '').toLowerCase();
             const nomeB = (b.clientes?.nome || '').toLowerCase();
             return nomeA.localeCompare(nomeB);
@@ -1003,27 +1005,42 @@ document.addEventListener('submit', async (e) => {
             const agendaId = document.getElementById('a-id').value;
 
             if (agendaId) {
-                // Modo Edição
+                // MODO EDIÇÃO: Verificar se o valor de entrada mudou para registrar nova movimentação
+                const { data: old } = await supabaseClient.from('agendamentos').select('valor_pago').eq('id', agendaId).single();
+                const valorAnterior = parseFloat(old?.valor_pago || 0);
+
                 const { error: errU } = await supabaseClient.from('agendamentos').update(agendaData).eq('id', agendaId);
                 if (errU) throw errU;
+
+                // Se a entrada aumentou, registrar a diferença no financeiro
+                const diferenca = entrada - valorAnterior;
+                if (diferenca > 0) {
+                    const forma = document.getElementById('a-forma-pagamento').value;
+                    await supabaseClient.from('financeiro').insert([{
+                        tipo: 'entrada',
+                        descricao: `Ajuste Entrada: ${clienteNome}`,
+                        valor: diferenca,
+                        data: new Date().toISOString(),
+                        agendamento_id: agendaId,
+                        forma_pagamento: forma || 'Pix'
+                    }]);
+                }
                 alert('✅ Agendamento atualizado!');
             } else {
                 // Modo Novo
                 const { data: agenda, error: errA } = await supabaseClient.from('agendamentos').insert([agendaData]).select().single();
                 if (errA) throw errA;
 
-                // 3. Registrar Entrada se houver (apenas para novo agendamento para evitar duplicar entrada na edição)
                 if (entrada > 0) {
                     const forma = document.getElementById('a-forma-pagamento').value;
-                    const finData = {
+                    await supabaseClient.from('financeiro').insert([{
                         tipo: 'entrada',
                         descricao: `Entrada: ${clienteNome}`,
                         valor: entrada,
                         data: new Date().toISOString(),
                         agendamento_id: agenda.id,
                         forma_pagamento: forma || 'Pix'
-                    };
-                    await supabaseClient.from('financeiro').insert([finData]);
+                    }]);
                 }
                 alert('✅ Agendado com sucesso!');
             }
@@ -1289,11 +1306,14 @@ document.addEventListener('submit', async (e) => {
         btn.innerText = 'Salvando...';
 
         const rawDate = document.getElementById('f-data').value;
+        const valorRaw = document.getElementById('f-valor').value;
+        const valor = parseFloat(valorRaw.replace(',', '.'));
+
         const finData = {
             tipo: document.getElementById('f-tipo').value,
             descricao: document.getElementById('f-descricao').value,
-            valor: parseFloat(document.getElementById('f-valor').value),
-            data: new Date(rawDate + 'T12:00:00').toISOString(), // Garantir meio-dia local para cair no dia certo
+            valor: valor,
+            data: new Date(rawDate + 'T12:00:00').toISOString(),
             forma_pagamento: document.getElementById('f-forma-pagamento').value
         };
 
@@ -1532,7 +1552,7 @@ async function checkBirthdays() {
 
 // Inicialização
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v3.2');
+    console.log('Atelier Aline Silva pronto! v3.3');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 
