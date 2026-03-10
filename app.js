@@ -829,8 +829,8 @@ function updateAgendaPrice() {
 
 async function updateDashboard() {
     try {
-        const today = new Date().toLocaleDateString('en-CA');
-        // Limites do dia local em UTC (Ex: 03:00 de hoje até 02:59 de amanhã)
+        const now = new Date();
+        const today = now.toLocaleDateString('en-CA');
         const startOfDay = new Date(today + 'T00:00:00').toISOString();
         const endOfDay = new Date(today + 'T23:59:59').toISOString();
 
@@ -841,34 +841,49 @@ async function updateDashboard() {
             .gte('data_hora', startOfDay)
             .lte('data_hora', endOfDay);
 
-        // Somar entradas financeiras de hoje (MESMO RANGE DO DIA LOCAL)
-        const { data: finEntries } = await supabaseClient
+        // Receita de HOJE
+        const { data: finEntriesToday } = await supabaseClient
             .from('financeiro')
             .select('valor')
             .eq('tipo', 'entrada')
-            .gte('data', startOfDay) // AGORA USA O MESMO RANGE LOCAL
+            .gte('data', startOfDay)
             .lte('data', endOfDay);
 
-        const count = agenda?.length || 0;
-        const revenue = finEntries?.reduce((sum, item) => {
-            const val = parseFloat(item.valor || 0) || 0;
-            return sum + val;
-        }, 0) || 0;
+        const countToday = agenda?.length || 0;
+        const revenueToday = finEntriesToday?.reduce((sum, item) => sum + (parseFloat(item.valor || 0) || 0), 0) || 0;
 
-        document.querySelectorAll('.stat-card').forEach(card => {
-            const label = card.querySelector('.stat-label')?.innerText.toUpperCase();
-            const valueEl = card.querySelector('.stat-value');
-            if (label === 'HOJE') {
-                if (valueEl) valueEl.innerText = count;
-                const dashCount = document.getElementById('dashboard-count');
-                if (dashCount) dashCount.innerText = count;
-            }
-            if (label === 'RECEITA DO DIA') {
-                if (valueEl) valueEl.innerText = `R$ ${revenue.toFixed(2)}`;
-                const dashRev = document.getElementById('dashboard-revenue');
-                if (dashRev) dashRev.innerText = `R$ ${revenue.toFixed(2)}`;
-            }
-        });
+        // Receita da SEMANA
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
+        startOfWeek.setHours(0, 0, 0, 0);
+        const { data: finEntriesWeek } = await supabaseClient
+            .from('financeiro')
+            .select('valor')
+            .eq('tipo', 'entrada')
+            .gte('data', startOfWeek.toISOString())
+            .lte('data', endOfDay);
+        const revenueWeek = finEntriesWeek?.reduce((sum, item) => sum + (parseFloat(item.valor || 0) || 0), 0) || 0;
+
+        // Receita do MÊS
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const { data: finEntriesMonth } = await supabaseClient
+            .from('financeiro')
+            .select('valor')
+            .eq('tipo', 'entrada')
+            .gte('data', startOfMonth.toISOString())
+            .lte('data', endOfDay);
+        const revenueMonth = finEntriesMonth?.reduce((sum, item) => sum + (parseFloat(item.valor || 0) || 0), 0) || 0;
+
+        // Atualizar UI Dashboard
+        const dashCount = document.getElementById('dashboard-count');
+        const dashRev = document.getElementById('dashboard-revenue');
+        const dashWeek = document.getElementById('dashboard-week-revenue');
+        const dashMonth = document.getElementById('dashboard-month-revenue');
+
+        if (dashCount) dashCount.innerText = countToday;
+        if (dashRev) dashRev.innerText = `R$ ${revenueToday.toFixed(2)}`;
+        if (dashWeek) dashWeek.innerText = `R$ ${revenueWeek.toFixed(2)}`;
+        if (dashMonth) dashMonth.innerText = `R$ ${revenueMonth.toFixed(2)}`;
 
         checkBirthdays();
     } catch (err) { console.error('Dashboard error:', err); }
@@ -1022,13 +1037,11 @@ async function checkBirthdays() {
 
     try {
         const { data: clients } = await supabaseClient.from('clientes').select('nome, data_nascimento');
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
 
-        // Normalizar data atual para meia-noite
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay());
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay());
 
         const endOfWeek = new Date(startOfWeek);
         endOfWeek.setDate(startOfWeek.getDate() + 6);
@@ -1036,31 +1049,28 @@ async function checkBirthdays() {
 
         const aniversariantes = clients.filter(c => {
             if (!c.data_nascimento) return false;
-
-            // Parse manual para evitar erro de Timezone (UTC)
             const [y, m, d] = c.data_nascimento.split('-');
-            const bday = new Date(today.getFullYear(), m - 1, d);
+            const bday = new Date(now.getFullYear(), m - 1, d);
             bday.setHours(0, 0, 0, 0);
-
             return bday >= startOfWeek && bday <= endOfWeek;
         });
 
         if (aniversariantes.length > 0) {
             list.innerHTML = aniversariantes.map(c => {
                 const [y, m, d] = c.data_nascimento.split('-');
-                return `${c.nome} (${d}/${m})`;
+                const isToday = parseInt(d) === now.getDate() && parseInt(m) === (now.getMonth() + 1);
+                return isToday ? `<b>HOJE: ${c.nome} 🥳</b>` : `${c.nome} (${d}/${m})`;
             }).join(', ');
-            banner.style.display = 'block';
         } else {
-            list.innerHTML = '<span style="font-weight:400; opacity:0.8;">Nenhum nesta semana</span>';
-            banner.style.display = 'block';
+            list.innerHTML = '<span style="font-weight:400; opacity:0.8;">Ninguém faz aniversário esta semana</span>';
         }
+        banner.style.display = 'block';
     } catch (err) { console.error(err); }
 }
 
 // --- INICIALIZAÇÃO E SERVICE WORKER ---
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v3.7.2');
+    console.log('Atelier Aline Silva pronto! v3.7.3');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 

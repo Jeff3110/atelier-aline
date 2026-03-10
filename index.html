@@ -6,8 +6,8 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Atelier Aline Silva</title>
-    <link rel="stylesheet" href="style.css?v=3.7.2">
-    <link rel="manifest" href="manifest.json?v=3.7.2">
+    <link rel="stylesheet" href="style.css?v=3.7.3">
+    <link rel="manifest" href="manifest.json?v=3.7.3">
     <meta name="theme-color" content="#3d2524">
     <link rel="apple-touch-icon" href="assets/icon-512.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -29,12 +29,15 @@
         <main id="main-content">
             <section id="screen-dashboard" class="screen active">
                 <header class="header">
-                    <img src="assets/logo.jpg?v=3.7.2" alt="Atelier Aline Silva" class="header-logo">
+                    <img src="assets/logo.jpg?v=3.7.3" alt="Atelier Aline Silva" class="header-logo">
                     <button onclick="location.reload(true)"
-                        style="position:absolute; top:35px; right:10px; background:none; border:none; color:var(--primary-color); opacity:0.3;"><i
+                        style="position:absolute; top:35px; right:12px; background:none; border:none; color:var(--primary-color); opacity:0.3;"><i
                             data-lucide="refresh-cw" style="width:14px;"></i></button>
+                    <button onclick="localStorage.clear(); sessionStorage.clear(); location.reload(true);"
+                        style="position:absolute; top:35px; right:35px; background:none; border:none; color:var(--primary-color); opacity:0.3;"><i
+                            data-lucide="trash-2" style="width:14px;"></i></button>
                     <span
-                        style="font-size: 0.6rem; opacity: 0.4; position: absolute; top: 10px; right: 10px;">v3.7.2</span>
+                        style="font-size: 0.6rem; opacity: 0.4; position: absolute; top: 10px; right: 10px;">v3.7.3</span>
                 </header>
 
                 <div class="stats-grid" id="birthday-banner-container" style="padding-bottom:0;">
@@ -56,6 +59,18 @@
                     <div class="stat-card highlight">
                         <span class="stat-label">Receita do Dia</span>
                         <span class="stat-value" id="dashboard-revenue">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- Resumo Acumulado -->
+                <div class="stats-grid" style="margin-top: -10px;">
+                    <div class="stat-card">
+                        <span class="stat-label" style="font-size: 0.7rem;">Ganhos da Semana</span>
+                        <span class="stat-value" id="dashboard-week-revenue" style="font-size: 0.95rem;">R$ 0,00</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label" style="font-size: 0.7rem;">Ganhos do Mês</span>
+                        <span class="stat-value" id="dashboard-month-revenue" style="font-size: 0.95rem;">R$ 0,00</span>
                     </div>
                 </div>
 
@@ -422,7 +437,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=3.7.2"></script>
+    <script src="app.js?v=3.7.3"></script>
     <script>
         lucide.createIcons();
     </script>
