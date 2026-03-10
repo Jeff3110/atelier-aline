@@ -805,8 +805,9 @@ async function fetchAgenda() {
 
         // Filtrar por data se selecionado
         if (selectedDate) {
-            const startOfDay = `${selectedDate}T00:00:00Z`;
-            const endOfDay = `${selectedDate}T23:59:59Z`;
+            // Fix Timezone: Criar limites do dia local em UTC
+            const startOfDay = new Date(selectedDate + 'T00:00:00').toISOString();
+            const endOfDay = new Date(selectedDate + 'T23:59:59').toISOString();
             query = query.gte('data_hora', startOfDay).lte('data_hora', endOfDay);
         }
 
@@ -912,6 +913,23 @@ async function showAgendaForm() {
     document.getElementById('modal-agenda').classList.add('active');
     document.getElementById('form-agenda').reset();
     document.getElementById('btn-save-agenda').innerText = 'Agendar';
+    document.getElementById('a-forma-pagamento-group').style.display = 'none';
+    document.getElementById('a-forma-pagamento').required = false;
+
+    // Monitorar valor de entrada para mostrar forma de pagamento
+    const inputEntrada = document.getElementById('a-entrada');
+    inputEntrada.oninput = () => {
+        const val = parseFloat(inputEntrada.value || 0);
+        const group = document.getElementById('a-forma-pagamento-group');
+        const select = document.getElementById('a-forma-pagamento');
+        if (val > 0) {
+            group.style.display = 'block';
+            select.required = true;
+        } else {
+            group.style.display = 'none';
+            select.required = false;
+        }
+    };
 
     // Set data/hora seletor para hoje/agora
     const now = new Date();
@@ -996,13 +1014,14 @@ document.addEventListener('submit', async (e) => {
 
                 // 3. Registrar Entrada se houver (apenas para novo agendamento para evitar duplicar entrada na edição)
                 if (entrada > 0) {
+                    const forma = document.getElementById('a-forma-pagamento').value;
                     const finData = {
                         tipo: 'entrada',
                         descricao: `Entrada: ${clienteNome}`,
                         valor: entrada,
                         data: new Date().toISOString(),
                         agendamento_id: agenda.id,
-                        forma_pagamento: 'Não especificado' // Pode ser melhorado depois
+                        forma_pagamento: forma || 'Pix'
                     };
                     await supabaseClient.from('financeiro').insert([finData]);
                 }
@@ -1107,6 +1126,7 @@ async function fetchFinanceiro() {
                 break;
         }
 
+        // Fix Timezone: Converter filtros locais para ISO string UTC compatível
         query = query.gte('data', start.toISOString()).lte('data', end.toISOString());
 
         const { data, error } = await query.order('data', { ascending: false });
@@ -1272,7 +1292,8 @@ document.addEventListener('submit', async (e) => {
             tipo: document.getElementById('f-tipo').value,
             descricao: document.getElementById('f-descricao').value,
             valor: parseFloat(document.getElementById('f-valor').value),
-            data: document.getElementById('f-data').value
+            data: document.getElementById('f-data').value,
+            forma_pagamento: document.getElementById('f-forma-pagamento').value
         };
 
         try {
@@ -1441,12 +1462,15 @@ async function updateDashboard() {
             .lte('data_hora', endOfDay);
 
         // Somar entradas financeiras de hoje (incluindo entradas de serviços futuros)
+        const startOfFin = new Date(today + 'T00:00:00').toISOString();
+        const endOfFin = new Date(today + 'T23:59:59').toISOString();
+
         const { data: finEntries } = await supabaseClient
             .from('financeiro')
             .select('valor')
             .eq('tipo', 'entrada')
-            .gte('data', startOfDay)
-            .lte('data', endOfDay);
+            .gte('data', startOfFin)
+            .lte('data', endOfFin);
 
         const count = agenda?.length || 0;
         const revenue = finEntries?.reduce((sum, item) => sum + parseFloat(item.valor || 0), 0) || 0;
