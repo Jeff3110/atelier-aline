@@ -829,7 +829,7 @@ async function fetchAgenda() {
 
         // Ordenar alfabeticamente pelo nome do cliente (conforme pedido)
         data.sort((a, b) => {
-            const CACHE_NAME = 'atelier-v25';
+            const CACHE_NAME = 'atelier-v26';
             const nomeA = (a.clientes?.nome || '').toLowerCase();
             const nomeB = (b.clientes?.nome || '').toLowerCase();
             return nomeA.localeCompare(nomeB);
@@ -1258,30 +1258,39 @@ function renderFinanceiro(items) {
 }
 
 function calculateTotals(items) {
+    if (!items) return;
+
     const totalEntradas = items
         .filter(i => i.tipo === 'entrada')
-        .reduce((sum, i) => sum + parseFloat(i.valor), 0);
+        .reduce((sum, i) => sum + (parseFloat(i.valor || 0) || 0), 0);
 
     const totalSaidas = items
         .filter(i => i.tipo === 'saida')
-        .reduce((sum, i) => sum + parseFloat(i.valor), 0);
+        .reduce((sum, i) => sum + (parseFloat(i.valor || 0) || 0), 0);
 
     const saldoReal = totalEntradas - totalSaidas;
 
-    document.getElementById('fin-entradas').innerText = `R$ ${totalEntradas.toFixed(2)}`;
-    document.getElementById('fin-saidas').innerText = `R$ ${totalSaidas.toFixed(2)}`;
-    document.getElementById('fin-saldo').innerText = `R$ ${saldoReal.toFixed(2)}`;
+    const entEl = document.getElementById('fin-entradas');
+    const saiEl = document.getElementById('fin-saidas');
+    const salEl = document.getElementById('fin-saldo');
+
+    if (entEl) entEl.innerText = `R$ ${totalEntradas.toFixed(2)}`;
+    if (saiEl) saiEl.innerText = `R$ ${totalSaidas.toFixed(2)}`;
+    if (salEl) {
+        salEl.innerText = `R$ ${saldoReal.toFixed(2)}`;
+        if (saldoReal > 0) salEl.style.color = '#2ecc71';
+        else if (saldoReal < 0) salEl.style.color = '#e74c3c';
+        else salEl.style.color = 'var(--secondary-color)';
+    }
 
     // Atualizar Acerto (40, 50, 60% do Saldo Real)
-    document.getElementById('acerto-40').innerText = `R$ ${(saldoReal * 0.4).toFixed(2)}`;
-    document.getElementById('acerto-50').innerText = `R$ ${(saldoReal * 0.5).toFixed(2)}`;
-    document.getElementById('acerto-60').innerText = `R$ ${(saldoReal * 0.6).toFixed(2)}`;
+    const a40 = document.getElementById('acerto-40');
+    const a50 = document.getElementById('acerto-50');
+    const a60 = document.getElementById('acerto-60');
 
-    // Cor dinâmica para o saldo
-    const saldoEl = document.getElementById('fin-saldo');
-    if (saldoReal > 0) saldoEl.style.color = '#2ecc71';
-    else if (saldoReal < 0) saldoEl.style.color = '#e74c3c';
-    else saldoEl.style.color = 'var(--secondary-color)';
+    if (a40) a40.innerText = `R$ ${(saldoReal * 0.4).toFixed(2)}`;
+    if (a50) a50.innerText = `R$ ${(saldoReal * 0.5).toFixed(2)}`;
+    if (a60) a60.innerText = `R$ ${(saldoReal * 0.6).toFixed(2)}`;
 }
 
 function toggleAcerto() {
@@ -1479,6 +1488,7 @@ document.addEventListener('submit', async (e) => {
 async function updateDashboard() {
     try {
         const today = new Date().toLocaleDateString('en-CA');
+        // Limites do dia local em UTC (Ex: 03:00 de hoje até 02:59 de amanhã)
         const startOfDay = new Date(today + 'T00:00:00').toISOString();
         const endOfDay = new Date(today + 'T23:59:59').toISOString();
 
@@ -1489,22 +1499,33 @@ async function updateDashboard() {
             .gte('data_hora', startOfDay)
             .lte('data_hora', endOfDay);
 
-        // Somar entradas financeiras de hoje (USANDO FILTRO DE DATA NOON LOCAL)
+        // Somar entradas financeiras de hoje (MESMO RANGE DO DIA LOCAL)
         const { data: finEntries } = await supabaseClient
             .from('financeiro')
             .select('valor')
             .eq('tipo', 'entrada')
-            .gte('data', today + 'T00:00:00Z')
-            .lte('data', today + 'T23:59:59Z');
+            .gte('data', startOfDay) // AGORA USA O MESMO RANGE LOCAL
+            .lte('data', endOfDay);
 
         const count = agenda?.length || 0;
-        const revenue = finEntries?.reduce((sum, item) => sum + parseFloat(item.valor || 0), 0) || 0;
+        const revenue = finEntries?.reduce((sum, item) => {
+            const val = parseFloat(item.valor || 0) || 0;
+            return sum + val;
+        }, 0) || 0;
 
         document.querySelectorAll('.stat-card').forEach(card => {
             const label = card.querySelector('.stat-label')?.innerText.toUpperCase();
             const valueEl = card.querySelector('.stat-value');
-            if (label === 'HOJE') valueEl.innerText = count;
-            if (label === 'RECEITA DO DIA') valueEl.innerText = `R$ ${revenue.toFixed(2)}`;
+            if (label === 'HOJE') {
+                if (valueEl) valueEl.innerText = count;
+                const dashCount = document.getElementById('dashboard-count');
+                if (dashCount) dashCount.innerText = count;
+            }
+            if (label === 'RECEITA DO DIA') {
+                if (valueEl) valueEl.innerText = `R$ ${revenue.toFixed(2)}`;
+                const dashRev = document.getElementById('dashboard-revenue');
+                if (dashRev) dashRev.innerText = `R$ ${revenue.toFixed(2)}`;
+            }
         });
 
         checkBirthdays();
@@ -1556,7 +1577,7 @@ async function checkBirthdays() {
 
 // Inicialização
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v3.4');
+    console.log('Atelier Aline Silva pronto! v3.5');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 
