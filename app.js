@@ -113,6 +113,15 @@ function renderScreen(screenId) {
                                 <label>Valor de Entrada / Sinal (R$)</label>
                                 <input type="number" id="a-entrada" step="0.01" placeholder="0,00" style="border: 2px solid var(--accent-color);">
                             </div>
+                            <div class="form-group" id="a-forma-pagamento-group" style="display:none;">
+                                <label>Forma de Pagamento (Entrada)*</label>
+                                <select id="a-forma-pagamento">
+                                    <option value="">Selecione...</option>
+                                    <option value="Pix">Pix</option>
+                                    <option value="Dinheiro">Dinheiro</option>
+                                    <option value="Cartão">Cartão</option>
+                                </select>
+                            </div>
                             <div class="form-group">
                                 <label>Detalhes p/ Clientes Exigentes (Ficha Técnica)</label>
                                 <textarea id="a-ficha" rows="2" placeholder="Ex: Gosta de tons neutros, pele sensível..."></textarea>
@@ -792,7 +801,7 @@ async function fetchAgenda() {
 
     // Se o filtro não estiver definido, colocar hoje como padrão
     if (dateFilter && !dateFilter.value) {
-        dateFilter.valueAsDate = new Date();
+        dateFilter.value = new Date().toLocaleDateString('en-CA');
     }
 
     const selectedDate = dateFilter ? dateFilter.value : null;
@@ -820,7 +829,6 @@ async function fetchAgenda() {
             const nomeB = (b.clientes?.nome || '').toLowerCase();
             return nomeA.localeCompare(nomeB);
         });
-
         renderAgenda(data);
     } catch (err) {
         console.error('Erro ao buscar agenda:', err);
@@ -1450,9 +1458,9 @@ document.addEventListener('submit', async (e) => {
 
 async function updateDashboard() {
     try {
-        const today = new Date().toISOString().split('T')[0];
-        const startOfDay = `${today}T00:00:00Z`;
-        const endOfDay = `${today}T23:59:59Z`;
+        const today = new Date().toLocaleDateString('en-CA');
+        const startOfDay = new Date(today + 'T00:00:00').toISOString();
+        const endOfDay = new Date(today + 'T23:59:59').toISOString();
 
         // Contar agendamentos de hoje
         const { data: agenda } = await supabaseClient
