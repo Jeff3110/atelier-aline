@@ -975,8 +975,7 @@ document.addEventListener('submit', async (e) => {
                         descricao: `Ajuste Entrada: ${clienteNome}`,
                         valor: diferenca,
                         data: new Date(dataLocal + 'T12:00:00').toISOString(),
-                        agendamento_id: id,
-                        forma_pagamento: document.getElementById('a-forma-pagamento').value || 'Pix'
+                        agendamento_id: id
                     }]);
                 }
             } else {
@@ -992,8 +991,7 @@ document.addEventListener('submit', async (e) => {
                         descricao: `Entrada: ${clienteNome}`,
                         valor: entrada,
                         data: new Date(dataLocal + 'T12:00:00').toISOString(),
-                        agendamento_id: agendaId,
-                        forma_pagamento: document.getElementById('a-forma-pagamento').value || 'Pix'
+                        agendamento_id: agendaId
                     }]);
                 }
             }
@@ -1016,8 +1014,7 @@ document.addEventListener('submit', async (e) => {
                 tipo: document.getElementById('f-tipo').value,
                 descricao: document.getElementById('f-descricao').value,
                 valor,
-                data: new Date(rawDate + 'T12:00:00').toISOString(),
-                forma_pagamento: document.getElementById('f-forma-pagamento').value
+                data: new Date(rawDate + 'T12:00:00').toISOString()
             };
             await supabaseClient.from('financeiro').insert([data]);
             alert('✅ Registro salvo!');
@@ -1102,7 +1099,7 @@ async function checkBirthdays() {
 
 // --- INICIALIZAÇÃO E SERVICE WORKER ---
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v3.7.4');
+    console.log('Atelier Aline Silva pronto! v3.7.5');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 
