@@ -428,7 +428,6 @@ async function fetchAgenda() {
 
         // Ordenar alfabeticamente pelo nome do cliente (conforme pedido)
         data.sort((a, b) => {
-            const CACHE_NAME = 'atelier-v27';
             const nomeA = (a.clientes?.nome || '').toLowerCase();
             const nomeB = (b.clientes?.nome || '').toLowerCase();
             return nomeA.localeCompare(nomeB);
@@ -1061,7 +1060,7 @@ async function checkBirthdays() {
 
 // --- INICIALIZAÇÃO E SERVICE WORKER ---
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Atelier Aline Silva pronto! v3.7.1');
+    console.log('Atelier Aline Silva pronto! v3.7.2');
     lucide.createIcons();
     updateDashboard(); // Carregar stats iniciais
 
